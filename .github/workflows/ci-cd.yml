@@ -127,7 +127,7 @@ jobs:
 
           echo >> test.log
           echo '=== cargo test ===' | tee -a test.log
-          cargo test --features dev --no-fail-fast 2>&1 | tee -a test.log
+          cargo test --no-default-features --no-fail-fast 2>&1 | tee -a test.log
           test_status=$?
 
           echo >> test.log
