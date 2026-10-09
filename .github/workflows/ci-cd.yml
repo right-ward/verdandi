@@ -38,7 +38,6 @@ on:
         description: Existing release tag to rebuild and publish (release operation only)
         required: false
         type: string
-        type: boolean
 
 concurrency:
   group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}
@@ -183,7 +182,7 @@ jobs:
           matrix='[
             {"platform":"linux","arch":"x86_64","dispatch_target":"linux-x86_64","target":"x86_64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
             {"platform":"linux","arch":"aarch64","dispatch_target":"linux-aarch64","target":"aarch64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
-            {"platform":"windows","arch":"x86_64","dispatch_target":"windows-x86_64","target":"x86_64-pc-windows-msvc","runner":"windows-latest","archive_ext":"zip"},
+            {"platform":"windows","arch":"x86_64","dispatch_target":"windows-x86_64","target":"x86_64-pc-windows-msvc","runner":"windows-latest","archive_ext":"zip"}
           ]'
 
           source_ref="$GITHUB_REF_NAME"
