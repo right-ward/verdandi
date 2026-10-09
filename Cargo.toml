@@ -1,0 +1,31 @@
+[package]
+name = "verdandi"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["right-ward"]
+repository = "https://github.com/right-ward/verdandi"
+description = "Seeded, layered procedural music for games: engine-agnostic core + Bevy plugin"
+publish = false
+
+[features]
+default = ["bevy-plugin"]
+# Turn off to use only the core (rng/theory/composer/synth/engine) with no Bevy dependency.
+bevy-plugin = ["dep:bevy"]
+
+[dependencies]
+bevy = { version = "0.20", optional = true }
+
+[[example]]
+name = "demo"
+required-features = ["bevy-plugin"]
+
+# Synthesis runs per-sample on the audio thread: unoptimized builds will crackle.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.verdandi]
+opt-level = 3

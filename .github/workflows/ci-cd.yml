@@ -1,0 +1,483 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+    paths:
+      - '**.rs'
+      - '.github/workflows/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Operation to perform
+        required: true
+        default: build
+        type: choice
+        options:
+          - build
+          - release
+      branch:
+        description: Branch to build from (workflow definition branch for release)
+        required: true
+        type: string
+      target:
+        description: Platform and architecture to build (build operation only)
+        required: false
+        default: linux-x86_64
+        type: choice
+        options:
+          - linux-x86_64
+          - linux-aarch64
+          - windows-x86_64
+      release_tag:
+        description: Existing release tag to rebuild and publish (release operation only)
+        required: false
+        type: string
+        type: boolean
+
+concurrency:
+  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  clippy:
+    name: Clippy
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'build'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Run Clippy
+        shell: bash
+        run: |
+          set +e
+
+          : > clippy.log
+          cargo clippy --all-targets --no-default-features -- -D warnings 2>&1 | tee clippy.log
+          clippy_status=${PIPESTATUS[0]}
+
+          echo "clippy_status=$clippy_status" >> clippy.log
+          if [ "$clippy_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Archive Clippy log
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          tar caf clippy-log.tar.xz clippy.log
+
+      - name: Upload Clippy log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: clippy-log.tar.xz
+          if-no-files-found: error
+          retention-days: 7
+          archive: false
+          overwrite: true
+
+  test:
+    name: Test
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'build'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ inputs.branch }}
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Run formatting and tests
+        shell: bash
+        run: |
+          set +e
+
+          : > test.log
+
+          echo '=== cargo fmt --check ===' >> test.log
+          cargo fmt --all -- --check >> test.log 2>&1
+          fmt_status=$?
+
+          echo >> test.log
+          echo '=== cargo test ===' | tee -a test.log
+          cargo test --features dev --no-fail-fast 2>&1 | tee -a test.log
+          test_status=$?
+
+          echo >> test.log
+          echo "fmt_status=$fmt_status" >> test.log
+          echo "test_status=$test_status" >> test.log
+
+          if [ "$fmt_status" -ne 0 ] || [ "$test_status" -ne 0 ]; then
+            echo "fmt_status=$fmt_status"
+            echo "test_status=$test_status"
+            exit 1
+          fi
+
+      - name: Archive test log
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          tar caf test-log.tar.xz test.log
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: test-log.tar.xz
+          if-no-files-found: error
+          retention-days: 7
+          archive: false
+          overwrite: true
+
+  prep_build_matrix:
+    name: Prepare build matrix
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      ref: ${{ steps.matrix.outputs.ref }}
+
+    steps:
+      - name: Prepare build matrix
+        id: matrix
+        shell: bash
+        env:
+          TARGET: ${{ inputs.target }}
+          OPERATION: ${{ inputs.operation }}
+          BRANCH: ${{ inputs.branch }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          matrix='[
+            {"platform":"linux","arch":"x86_64","dispatch_target":"linux-x86_64","target":"x86_64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
+            {"platform":"linux","arch":"aarch64","dispatch_target":"linux-aarch64","target":"aarch64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
+            {"platform":"windows","arch":"x86_64","dispatch_target":"windows-x86_64","target":"x86_64-pc-windows-msvc","runner":"windows-latest","archive_ext":"zip"},
+          ]'
+
+          source_ref="$GITHUB_REF_NAME"
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$OPERATION" == "release" ]]; then
+              if [[ -z "$RELEASE_TAG" ]]; then
+                echo "release_tag is required for the release operation."
+                exit 1
+              fi
+              case "$RELEASE_TAG" in
+                v[0-9]*.[0-9]*.[0-9]*) ;;
+                *)
+                  echo "Release tags must use vMAJOR.MINOR.PATCH; got $RELEASE_TAG"
+                  exit 1
+                  ;;
+              esac
+              source_ref="$RELEASE_TAG"
+            else
+              if [[ -z "$BRANCH" ]]; then
+                echo "branch is required for the build operation."
+                exit 1
+              fi
+              matrix="$(jq -c --arg target "$TARGET" 'map(select(.dispatch_target == $target))' <<< "$matrix")"
+              if [[ "$matrix" == "[]" ]]; then
+                echo "Unsupported build target: $TARGET"
+                exit 1
+              fi
+              source_ref="$BRANCH"
+            fi
+          fi
+
+          matrix="$(jq -c . <<< "$matrix")"
+          echo "ref=$source_ref" >> "$GITHUB_OUTPUT"
+          echo "matrix={\"include\":$matrix}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.platform }} ${{ matrix.arch }}
+    needs: prep_build_matrix
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prep_build_matrix.outputs.matrix) }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prep_build_matrix.outputs.ref }}
+
+      - name: Verify release tag
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.operation == 'release')
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          tag_commit="$(git rev-list -n 1 "$RELEASE_TAG^{commit}")"
+          if ! git branch -r --contains "$tag_commit" | grep -qE 'origin/main$'; then
+            echo "Tag $RELEASE_TAG does not point to a commit contained in main."
+            exit 1
+          fi
+
+      - name: Validate release version
+        if: |
+          (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.operation == 'release')
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          case "$RELEASE_TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "Release tags must use vMAJOR.MINOR.PATCH; got $RELEASE_TAG"
+              exit 1
+              ;;
+          esac
+
+          package_version="$(grep '^version = ' Cargo.toml | head -n 1 | cut -d\" -f2)"
+          tag_version="${RELEASE_TAG#v}"
+
+          if [ "$package_version" != "$tag_version" ]; then
+            echo "Cargo.toml version ($package_version) does not match tag ($tag_version)."
+            exit 1
+          fi
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Configure Linux cross compiler
+        if: matrix.platform == 'linux' && matrix.arch == 'aarch64'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Configure Windows build environment
+        if: matrix.platform == 'windows'
+        uses: ilammy/msvc-dev-cmd@v1.13.0
+        with:
+          arch: ${{ matrix.arch == 'aarch64' && 'amd64_arm64' || 'amd64' }}
+
+      - name: Build release binary
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          BUILD_PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          DEBUG_BUILD: ${{ inputs.debug_build }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+
+          : > build.log
+          rustup target add "$TARGET"
+
+          if [[ "$BUILD_PLATFORM" == "linux" && "$ARCH" == "aarch64" ]]; then
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+          fi
+
+          if [[ "$BUILD_PLATFORM" == "windows" ]]; then
+            case "$ARCH" in
+              x86_64)
+                linker="${VCToolsInstallDir}bin/HostX64/x64/link.exe"
+                ;;
+              *)
+                echo "Unsupported Windows architecture: $ARCH"
+                exit 1
+                ;;
+            esac
+
+            if [[ ! -f "$linker" ]]; then
+              echo "MSVC linker not found: $linker"
+              exit 1
+            fi
+
+            target_env="${TARGET//-/_}"
+            target_env="${target_env^^}"
+            export "CARGO_TARGET_${target_env}_LINKER=$linker"
+          fi
+
+
+          cargo_args=(build --release --target "$TARGET")
+          cargo "${cargo_args[@]}" 2>&1 | tee -a build.log
+
+      - name: Package release archive
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          BUILD_PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+          ARCHIVE_EXT: ${{ matrix.archive_ext }}
+        run: |
+          set -euo pipefail
+
+          ref_name="${{ needs.prep_build_matrix.outputs.ref }}"
+          ref_name="${ref_name//\//-}"
+
+          release_name="verdandi-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
+          package_dir="package/$release_name"
+          mkdir -p "$package_dir"
+
+          cp -R data "$package_dir/"
+
+          if [[ "$BUILD_PLATFORM" == "windows" ]]; then
+            cp "target/$TARGET/release/verdandi.exe" "$package_dir/"
+            (cd package && 7z a -tzip -mx=9 "../$release_name.$ARCHIVE_EXT" "$release_name")
+          else
+            cp "target/$TARGET/release/verdandi" "$package_dir/"
+            tar -cJf "$release_name.$ARCHIVE_EXT" -C package "$release_name"
+          fi
+
+          echo "Created $release_name.$ARCHIVE_EXT" | tee -a build.log
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: verdandi-*-${{ matrix.platform }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
+          if-no-files-found: error
+          retention-days: 7
+          archive: false
+          overwrite: true
+
+      - name: Archive build log
+        if: always()
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          BUILD_PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set +e
+          {
+            printf '%s\n' \
+              "platform=${BUILD_PLATFORM}" \
+              "arch=${ARCH}" \
+              "target=${TARGET}" \
+              "ref=${{ needs.prep_build_matrix.outputs.ref }}"
+            cat build.log 2>/dev/null || true
+          } > build-log.txt
+          tar caf "build-log-${BUILD_PLATFORM}-${ARCH}.tar.xz" build-log.txt
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: build-log-${{ matrix.platform }}-${{ matrix.arch }}.tar.xz
+          if-no-files-found: error
+          retention-days: 7
+          archive: false
+          overwrite: true
+
+  release:
+    name: Publish GitHub Release
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.operation == 'release')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ needs.prep_build_matrix.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Download release archives
+        uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: verdandi-*
+          path: dist
+          merge-multiple: true
+          skip-decompress: true
+
+      - name: List Downloaded archives
+        shell: bash
+        run: ls -R dist/
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3.0.2
+        with:
+          tag_name: ${{ needs.prep_build_matrix.outputs.ref }}
+          generate_release_notes: true
+          preserve_order: true
+          overwrite_files: true
+          files: |
+            dist/verdandi-${{ needs.prep_build_matrix.outputs.ref }}-linux-x86_64.tar.xz
+            dist/verdandi-${{ needs.prep_build_matrix.outputs.ref }}-linux-aarch64.tar.xz
+            dist/verdandi-${{ needs.prep_build_matrix.outputs.ref }}-windows-x86_64.zip
+
+  sync_lock:
+    name: Commit Cargo.lock updates
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: main
+          #token: ${{ secrets.SYNC_PUSH_TOKEN }}
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Sync lock file
+        run: cargo update --workspace
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "Cargo.lock already up to date."
+            exit 0
+          fi
+          git config --global user.email "110196116+right-ward@users.noreply.github.com"
+          git config --global user.name "right-ward"
+          git add Cargo.lock
+          git commit -m "chore: sync Cargo.lock [skip ci]"
+          git push origin HEAD:main
