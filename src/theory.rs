@@ -85,7 +85,8 @@ pub struct Theme {
 
 impl Theme {
     pub fn from_seed(seed: u64, overrides: &ThemeOverrides) -> Self {
-        // Always consume the same rolls so a pinned field never shifts the others.
+        // Always consume the same rolls so a pinned field never shifts the other
+        #[allow(clippy::unusual_byte_groupings)]
         let mut rng = Rng::new(derive_seed(seed, 0x7468_656D_65, 0));
         let pitch_class = rng.range(0, 12) as i32;
         let scale = ScaleKind::ALL[rng.weighted(&[0.35, 0.25, 0.2, 0.12, 0.08])];

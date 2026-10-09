@@ -313,6 +313,7 @@ impl Engine {
 
     /// Fill `out` with interleaved stereo (L, R, L, R, ...) samples.
     pub fn render_interleaved(&mut self, out: &mut [f32]) {
+        #[allow(clippy::chunks_exact_to_as_chunks)]
         for frame in out.chunks_exact_mut(2) {
             let (l, r) = self.render_frame();
             frame[0] = l;

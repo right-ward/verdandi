@@ -443,6 +443,7 @@ fn gen_lead(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
         }
         if bar == BARS_PER_LOOP - 1 {
             // Cadence: keep the first half of the motif, then resolve on a long chord root.
+            #[allow(clippy::manual_div_ceil)]
             let keep = (notes.len() + 1) / 2;
             notes.truncate(keep);
             if let Some(last) = notes.last_mut() {
