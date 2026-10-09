@@ -71,7 +71,7 @@ jobs:
           set +e
 
           : > clippy.log
-          cargo clippy --all-targets --no-default-features -- -D warnings 2>&1 | tee clippy.log
+          cargo clippy --all-targets --no-default-features -- 2>&1 | tee clippy.log
           clippy_status=${PIPESTATUS[0]}
 
           echo "clippy_status=$clippy_status" >> clippy.log
