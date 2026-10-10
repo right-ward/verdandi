@@ -9,7 +9,7 @@ Presets change musical composition as well as timbre:
 - **Legendary Metal** — heavy metal combined with orchestral-string and choir-like layers for a grand, sacred atmosphere.
 - **Classical Ambient** — restrained, string-led ambience with a stately, historical-soundtrack character and a gentle ostinato.
 
-Select `MusicPace::Fast` for denser, faster metal arrangements. Mythic Ambient keeps its slower tempo range. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
+Select `MusicPace::Fast` for denser, faster metal arrangements. Both ambient presets keep their slower tempo ranges. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
 
 The same seed, preset, pace, and overrides reproduce the same musical patterns. Layer patterns can repeat, mutate, or regenerate at four-bar loop boundaries, while intensity controls when layers become audible.
 
@@ -38,6 +38,7 @@ Choose a preset and pace with the optional arguments (seed, preset, pace):
 
 ```sh
 cargo run --release --no-default-features --features demo --example demo -- 1234 mythic-ambient
+cargo run --release --no-default-features --features demo --example demo -- 1234 classical-ambient
 cargo run --release --no-default-features --features demo --example demo -- 1234 heavy-metal fast
 cargo run --release --no-default-features --features demo --example demo -- 1234 legendary-metal
 ```
