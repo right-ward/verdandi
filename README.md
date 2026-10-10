@@ -41,6 +41,18 @@ cargo run --release --no-default-features --features demo --example demo -- 1234
 cargo run --release --no-default-features --features demo --example demo -- 1234 legendary-metal
 ```
 
+## Offline WAV renderer
+
+The `render_wav` example generates a standalone stereo, 16-bit PCM WAV file. It uses the engine directly, with no Bevy window, audio device, or extra dependencies, so it can also run in Termux. The requested loop count is rendered to the file; each loop is four bars.
+
+```sh
+cargo run --release --no-default-features --example render_wav -- 1234 mythic-ambient 8 mythic.wav
+cargo run --release --no-default-features --example render_wav -- 1234 heavy-metal 8 heavy.wav fast
+cargo run --release --no-default-features --example render_wav -- 1234 legendary-metal 12 legendary.wav
+```
+
+Arguments are `seed preset loops output.wav [standard|fast]`. Presets also accept the short names `ambient`, `metal`, and `legendary`. WAV output is 44.1 kHz; transfer the generated file to Android or open it in any WAV-capable player.
+
 ## Use it in your game
 
 ```toml
@@ -79,6 +91,7 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 | `composer.rs` | Preset-specific layer generators, motif-based melodies and riffs, mutation, repeat/mutate/regenerate policy per layer |
 | `synth.rs` | Small polyphonic synth + drums + stereo delay; no allocation on the hot path |
 | `engine.rs` | Sequencer, `MusicConfig`, lock-free `MusicShared` control/status block |
+| `examples/render_wav.rs` | Headless CLI exporter for fixed-length WAV tracks |
 | `plugin.rs` | Bevy `Decodable` source, `MusicController`, plugin |
 
 ## Tuning and extending
