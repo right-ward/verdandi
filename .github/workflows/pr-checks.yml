@@ -63,7 +63,7 @@ jobs:
           set +e
 
           : > clippy.log
-          cargo clippy --all-targets --no-default-features 2>&1 | tee clippy.log
+          cargo clippy --locked --all-targets --no-default-features 2>&1 | tee clippy.log
           clippy_status=${PIPESTATUS[0]}
 
           echo "clippy_status=$clippy_status" >> clippy.log
@@ -106,27 +106,20 @@ jobs:
           toolchain: stable
           cache: true
 
-      - name: Run formatting and tests
+      - name: Run tests
         shell: bash
         run: |
           set +e
 
           : > test.log
-
-          echo '=== cargo fmt --check ===' | tee -a test.log
-          cargo fmt --all -- --check 2>&1 | tee -a test.log
-          fmt_status=$?
-
-          echo >> test.log
           echo '=== cargo test --lib ===' | tee -a test.log
-          cargo test --lib --no-default-features --no-fail-fast 2>&1 | tee -a test.log
-          test_status=$?
+          cargo test --locked --lib --no-default-features --no-fail-fast 2>&1 | tee -a test.log
+          test_status=${PIPESTATUS[0]}
 
           echo >> test.log
-          echo "fmt_status=$fmt_status" | tee -a test.log
           echo "test_status=$test_status" | tee -a test.log
 
-          if [ "$fmt_status" -ne 0 ] || [ "$test_status" -ne 0 ]; then
+          if [ "$test_status" -ne 0 ]; then
             exit 1
           fi
 

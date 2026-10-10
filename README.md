@@ -20,7 +20,12 @@ Test the core using:
 cargo test --no-default-features
 ```
 
-Then the demo. On Ubuntu, install Bevy's native build dependencies first: `sudo apt-get install build-essential pkg-config libasound2-dev libudev-dev libx11-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev`.
+Then the demo. On Ubuntu, install Bevy's native build dependencies first:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential pkg-config libasound2-dev libudev-dev libx11-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
+```
 
 ```
 cargo run --release --example demo -- 1234
