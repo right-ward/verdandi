@@ -270,9 +270,9 @@ fn generate_for_preset(
             }
         },
         Layer::Pad => match preset {
-            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal | MusicPreset::ClassicalAmbient => {
-                gen_pad(theme, rng)
-            }
+            MusicPreset::MythicAmbient
+            | MusicPreset::LegendaryMetal
+            | MusicPreset::ClassicalAmbient => gen_pad(theme, rng),
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Arp => match preset {
@@ -295,16 +295,16 @@ fn generate_for_preset(
             }
         },
         Layer::Strings => match preset {
-            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal | MusicPreset::ClassicalAmbient => {
-                gen_strings(theme, rng)
-            }
+            MusicPreset::MythicAmbient
+            | MusicPreset::LegendaryMetal
+            | MusicPreset::ClassicalAmbient => gen_strings(theme, rng),
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Choir => match preset {
             MusicPreset::LegendaryMetal => gen_choir(theme),
-            MusicPreset::MythicAmbient | MusicPreset::HeavyMetal | MusicPreset::ClassicalAmbient => {
-                Vec::new()
-            }
+            MusicPreset::MythicAmbient
+            | MusicPreset::HeavyMetal
+            | MusicPreset::ClassicalAmbient => Vec::new(),
         },
     }
 }
@@ -969,8 +969,17 @@ mod tests {
         assert!(plan.layers[Layer::Drums.index()].is_empty());
         assert!(plan.layers[Layer::RhythmGuitar.index()].is_empty());
         assert!(plan.layers[Layer::Choir.index()].is_empty());
-        for layer in [Layer::Bass, Layer::Pad, Layer::Arp, Layer::Lead, Layer::Strings] {
-            assert!(!plan.layers[layer.index()].is_empty(), "{layer:?} should be used");
+        for layer in [
+            Layer::Bass,
+            Layer::Pad,
+            Layer::Arp,
+            Layer::Lead,
+            Layer::Strings,
+        ] {
+            assert!(
+                !plan.layers[layer.index()].is_empty(),
+                "{layer:?} should be used"
+            );
         }
         assert!(plan.layers[Layer::Arp.index()]
             .iter()
