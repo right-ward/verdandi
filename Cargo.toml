@@ -37,6 +37,9 @@ demo = [
 bevy = { version = "0.20", optional = true, default-features = false }
 
 [[example]]
+name = "render_wav"
+
+[[example]]
 name = "demo"
 required-features = ["demo"]
 
