@@ -1,4 +1,4 @@
-//! `cargo run --release --example demo -- 1234`   (optional seed argument)
+//! `cargo run --release --example demo -- 1234 heavy-metal fast`   (seed, preset, optional pace)
 
 use bevy::prelude::*;
 use verdandi::composer::STEPS_PER_LOOP;

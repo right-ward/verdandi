@@ -126,28 +126,45 @@ impl Theme {
         let (scale, progressions): (ScaleKind, &[[i32; 4]]) = match preset {
             MusicPreset::MythicAmbient => {
                 const SCALES: [ScaleKind; 4] = [
-                    ScaleKind::Major, ScaleKind::Dorian, ScaleKind::Mixolydian, ScaleKind::Minor,
+                    ScaleKind::Major,
+                    ScaleKind::Dorian,
+                    ScaleKind::Mixolydian,
+                    ScaleKind::Minor,
                 ];
                 const PROGS: [[i32; 4]; 4] = [
-                    [0, 4, 5, 3], [0, 5, 2, 4], [0, 3, 4, 0], [0, 4, 0, 5],
+                    [0, 4, 5, 3],
+                    [0, 5, 2, 4],
+                    [0, 3, 4, 0],
+                    [0, 4, 0, 5],
                 ];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
             MusicPreset::HeavyMetal => {
                 const SCALES: [ScaleKind; 3] = [
-                    ScaleKind::Minor, ScaleKind::Phrygian, ScaleKind::Dorian,
+                    ScaleKind::Minor,
+                    ScaleKind::Phrygian,
+                    ScaleKind::Dorian,
                 ];
                 const PROGS: [[i32; 4]; 4] = [
-                    [0, 5, 6, 4], [0, 6, 5, 6], [0, 3, 0, 4], [0, 5, 4, 3],
+                    [0, 5, 6, 4],
+                    [0, 6, 5, 6],
+                    [0, 3, 0, 4],
+                    [0, 5, 4, 3],
                 ];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
             MusicPreset::LegendaryMetal => {
                 const SCALES: [ScaleKind; 4] = [
-                    ScaleKind::Minor, ScaleKind::Dorian, ScaleKind::Major, ScaleKind::Mixolydian,
+                    ScaleKind::Minor,
+                    ScaleKind::Dorian,
+                    ScaleKind::Major,
+                    ScaleKind::Mixolydian,
                 ];
                 const PROGS: [[i32; 4]; 4] = [
-                    [0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 2, 5, 4],
+                    [0, 3, 4, 0],
+                    [0, 5, 3, 4],
+                    [0, 4, 5, 3],
+                    [0, 2, 5, 4],
                 ];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
@@ -234,6 +251,54 @@ mod tests {
         assert_eq!(a.progression, b.progression);
         assert!((36..=47).contains(&a.tonic));
         assert!((78.0..=120.0).contains(&a.bpm));
+    }
+
+    #[test]
+    fn preset_theme_overrides_take_priority() {
+        let overrides = ThemeOverrides {
+            tonic_pitch_class: Some(2),
+            scale: Some(ScaleKind::Major),
+            bpm: Some(123.0),
+            progression: Some([0, 3, 4, 0]),
+        };
+        let theme = Theme::from_seed_for_preset(
+            81,
+            &overrides,
+            MusicPreset::HeavyMetal,
+            MusicPace::Fast,
+        );
+        assert_eq!(theme.key_name(), "D");
+        assert_eq!(theme.scale, ScaleKind::Major);
+        assert_eq!(theme.bpm, 123.0);
+        assert_eq!(theme.progression, [0, 3, 4, 0]);
+    }
+
+    #[test]
+    fn preset_pace_sets_distinct_tempo_ranges() {
+        let standard = Theme::from_seed_for_preset(
+            17,
+            &ThemeOverrides::default(),
+            MusicPreset::HeavyMetal,
+            MusicPace::Standard,
+        );
+        let fast = Theme::from_seed_for_preset(
+            17,
+            &ThemeOverrides::default(),
+            MusicPreset::HeavyMetal,
+            MusicPace::Fast,
+        );
+        assert!((100.0..161.0).contains(&standard.bpm));
+        assert!((155.0..211.0).contains(&fast.bpm));
+        assert_eq!(
+            fast.bpm,
+            Theme::from_seed_for_preset(
+                17,
+                &ThemeOverrides::default(),
+                MusicPreset::HeavyMetal,
+                MusicPace::Fast,
+            )
+            .bpm
+        );
     }
 
     #[test]

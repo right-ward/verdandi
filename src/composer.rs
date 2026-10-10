@@ -69,6 +69,21 @@ impl Layer {
         }
     }
 
+    /// Whether this layer participates in the selected preset.
+    pub fn used_by(self, preset: MusicPreset) -> bool {
+        match preset {
+            MusicPreset::MythicAmbient => matches!(
+                self,
+                Layer::Bass | Layer::Pad | Layer::Arp | Layer::Lead | Layer::Strings
+            ),
+            MusicPreset::HeavyMetal => matches!(
+                self,
+                Layer::Drums | Layer::Bass | Layer::Lead | Layer::RhythmGuitar
+            ),
+            MusicPreset::LegendaryMetal => true,
+        }
+    }
+
     fn tag(self) -> u64 {
         0x100 + self as u64
     }
@@ -251,7 +266,9 @@ fn generate_for_preset(
         },
         Layer::Bass => match preset {
             MusicPreset::MythicAmbient => gen_ambient_bass(theme),
-            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => gen_metal_bass(theme, rng, pace),
+            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
+                gen_metal_bass(theme, rng, pace)
+            }
         },
         Layer::Pad => match preset {
             MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_pad(theme, rng),
@@ -269,7 +286,9 @@ fn generate_for_preset(
         },
         Layer::RhythmGuitar => match preset {
             MusicPreset::MythicAmbient => Vec::new(),
-            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => gen_rhythm_guitar(theme, rng, pace),
+            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
+                gen_rhythm_guitar(theme, rng, pace)
+            }
         },
         Layer::Strings => match preset {
             MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_strings(theme, rng),
@@ -296,10 +315,13 @@ fn gen_ambient_bass(theme: &Theme) -> Vec<NoteEvent> {
 
 fn gen_metal_bass(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
     const STANDARD_RHYTHMS: &[&[u32]] = &[
-        &[0, 4, 8, 12], &[0, 3, 6, 8, 11, 12], &[0, 2, 4, 6, 8, 10, 12, 14],
+        &[0, 4, 8, 12],
+        &[0, 3, 6, 8, 11, 12],
+        &[0, 2, 4, 6, 8, 10, 12, 14],
     ];
     const FAST_RHYTHMS: &[&[u32]] = &[
-        &[0, 2, 4, 6, 8, 10, 12, 14], &[0, 1, 4, 5, 8, 9, 12, 13],
+        &[0, 2, 4, 6, 8, 10, 12, 14],
+        &[0, 1, 4, 5, 8, 9, 12, 13],
         &[0, 3, 4, 7, 8, 11, 12, 15],
     ];
     let rhythm = if pace == MusicPace::Fast {
@@ -327,10 +349,13 @@ fn gen_metal_bass(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEven
 
 fn gen_metal_drums(rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
     const STANDARD_KICKS: &[&[u32]] = &[
-        &[0, 4, 8, 12], &[0, 6, 8, 12], &[0, 3, 8, 11],
+        &[0, 4, 8, 12],
+        &[0, 6, 8, 12],
+        &[0, 3, 8, 11],
     ];
     const FAST_KICKS: &[&[u32]] = &[
-        &[0, 2, 4, 6, 8, 10, 12, 14], &[0, 2, 4, 7, 8, 10, 12, 15],
+        &[0, 2, 4, 6, 8, 10, 12, 14],
+        &[0, 2, 4, 7, 8, 10, 12, 15],
         &[0, 3, 4, 6, 8, 11, 12, 14],
     ];
     const SNARES: &[&[u32]] = &[&[4, 12], &[4, 12], &[4, 10, 12]];
@@ -377,11 +402,14 @@ fn gen_metal_drums(rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
 
 fn gen_rhythm_guitar(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
     const STANDARD_RIFFS: &[&[u32]] = &[
-        &[0, 4, 7, 8, 12], &[0, 3, 6, 8, 11, 12], &[0, 2, 4, 6, 8, 10, 12, 14],
+        &[0, 4, 7, 8, 12],
+        &[0, 3, 6, 8, 11, 12],
+        &[0, 2, 4, 6, 8, 10, 12, 14],
     ];
     const FAST_RIFFS: &[&[u32]] = &[
         &[0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14],
-        &[0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15], &[0, 2, 4, 6, 8, 10, 12, 14],
+        &[0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15],
+        &[0, 2, 4, 6, 8, 10, 12, 14],
     ];
     let riff = if pace == MusicPace::Fast {
         *rng.pick(FAST_RIFFS)

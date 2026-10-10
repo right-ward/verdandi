@@ -267,7 +267,7 @@ impl Voice {
     }
 }
 
-/// Cross-fed stereo delay (ping-pong flavour). Only plucks and leads feed it.
+/// Cross-fed stereo delay (ping-pong flavour). Melodic and sustained voices can feed it.
 struct Delay {
     buf_l: Vec<f32>,
     buf_r: Vec<f32>,

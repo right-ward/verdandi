@@ -89,5 +89,5 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - Fixed 4/4, 16 steps per bar, 4-bar loops.
 - Instrument voices are procedural approximations; they do not yet reproduce real acoustic violins, guitars, or choirs.
 - Presets are selected through `MusicConfig`; seamless runtime transitions between presets are not implemented.
-- Seed changes wait for the loop boundary (about 8-12 s).
+- Seed changes wait for the loop boundary (about 4.6-16.6 s across built-in preset tempo ranges).
 - No crossfade or stinger system yet; intensity gating is note-level, so layers enter on the next note.
