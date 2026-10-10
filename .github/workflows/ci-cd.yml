@@ -25,6 +25,14 @@ on:
         description: Branch to build from (required for build operations)
         required: false
         type: string
+      example:
+        description: Example to build (build operation only; releases always build demo)
+        required: false
+        default: demo
+        type: choice
+        options:
+          - demo
+          - render_wav
       target:
         description: Platform and architecture to build (build operation only)
         required: false
@@ -45,7 +53,7 @@ on:
         type: boolean
 
 concurrency:
-  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}
+  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.example }}-${{ inputs.target }}-${{ inputs.release_tag }}
   cancel-in-progress: true
 
 permissions:
@@ -288,7 +296,7 @@ jobs:
           cache: true
 
       - name: Install Linux native dependencies
-        if: matrix.platform == 'linux'
+        if: matrix.platform == 'linux' && (github.event_name != 'workflow_dispatch' || inputs.operation == 'release' || inputs.example == 'demo')
         shell: bash
         run: |
           sudo apt-get update
@@ -307,7 +315,7 @@ jobs:
         with:
           arch: ${{ matrix.arch == 'aarch64' && 'amd64_arm64' || 'amd64' }}
 
-      - name: Build demo binary
+      - name: Build selected example
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
@@ -315,6 +323,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           DEBUG_BUILD: ${{ inputs.debug_build }}
           OPERATION: ${{ inputs.operation }}
+          EXAMPLE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'build' && inputs.example || 'demo' }}
         run: |
           set -euo pipefail
 
@@ -344,7 +353,10 @@ jobs:
 
 
           profile=release
-          cargo_args=(build --target "$TARGET" --example demo --locked --no-default-features --features demo)
+          cargo_args=(build --target "$TARGET" --example "$EXAMPLE" --locked --no-default-features)
+          if [[ "$EXAMPLE" == "demo" ]]; then
+            cargo_args+=(--features demo)
+          fi
           if [[ "$OPERATION" != "release" && "$DEBUG_BUILD" == "true" ]]; then
             profile=debug
           else
@@ -354,7 +366,7 @@ jobs:
           echo "profile=$profile" >> build.log
           cargo "${cargo_args[@]}" 2>&1 | tee -a build.log
 
-      - name: Package release archive
+      - name: Package example archive
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
@@ -362,6 +374,8 @@ jobs:
           ARCH: ${{ matrix.arch }}
           ARCHIVE_EXT: ${{ matrix.archive_ext }}
           PROFILE: ${{ inputs.debug_build && inputs.operation != 'release' && 'debug' || 'release' }}
+          OPERATION: ${{ inputs.operation }}
+          EXAMPLE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'build' && inputs.example || 'demo' }}
           REF_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set -euo pipefail
@@ -369,16 +383,21 @@ jobs:
           ref_name="$REF_NAME"
           ref_name="${ref_name//\//-}"
 
-          release_name="verdandi-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$OPERATION" == "build" ]]; then
+            release_name="verdandi-${ref_name}-${EXAMPLE//_/-}-${BUILD_PLATFORM}-${ARCH}"
+          else
+            release_name="verdandi-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
+          fi
           package_dir="package/$release_name"
           mkdir -p "$package_dir"
 
-          binary="target/$TARGET/$PROFILE/examples/demo"
+          binary="target/$TARGET/$PROFILE/examples/$EXAMPLE"
+          binary_name="verdandi-${EXAMPLE//_/-}"
           if [[ "$BUILD_PLATFORM" == "windows" ]]; then
-            cp "${binary}.exe" "$package_dir/verdandi-demo.exe"
+            cp "${binary}.exe" "$package_dir/${binary_name}.exe"
             (cd package && 7z a -tzip -mx=9 "../$release_name.$ARCHIVE_EXT" "$release_name")
           else
-            cp "$binary" "$package_dir/verdandi-demo"
+            cp "$binary" "$package_dir/$binary_name"
             tar -cJf "$release_name.$ARCHIVE_EXT" -C package "$release_name"
           fi
 
