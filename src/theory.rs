@@ -117,11 +117,7 @@ impl Theme {
         pace: MusicPace,
     ) -> Self {
         let mut theme = Self::from_seed(seed, overrides);
-        let mut rng = Rng::new(derive_seed(
-            seed,
-            0x7072_6573_6574,
-            preset.index() as u64,
-        ));
+        let mut rng = Rng::new(derive_seed(seed, 0x7072_6573_6574, preset.index() as u64));
 
         let (scale, progressions): (ScaleKind, &[[i32; 4]]) = match preset {
             MusicPreset::MythicAmbient => {
@@ -131,26 +127,15 @@ impl Theme {
                     ScaleKind::Mixolydian,
                     ScaleKind::Minor,
                 ];
-                const PROGS: [[i32; 4]; 4] = [
-                    [0, 4, 5, 3],
-                    [0, 5, 2, 4],
-                    [0, 3, 4, 0],
-                    [0, 4, 0, 5],
-                ];
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 4, 5, 3], [0, 5, 2, 4], [0, 3, 4, 0], [0, 4, 0, 5]];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
             MusicPreset::HeavyMetal => {
-                const SCALES: [ScaleKind; 3] = [
-                    ScaleKind::Minor,
-                    ScaleKind::Phrygian,
-                    ScaleKind::Dorian,
-                ];
-                const PROGS: [[i32; 4]; 4] = [
-                    [0, 5, 6, 4],
-                    [0, 6, 5, 6],
-                    [0, 3, 0, 4],
-                    [0, 5, 4, 3],
-                ];
+                const SCALES: [ScaleKind; 3] =
+                    [ScaleKind::Minor, ScaleKind::Phrygian, ScaleKind::Dorian];
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 5, 6, 4], [0, 6, 5, 6], [0, 3, 0, 4], [0, 5, 4, 3]];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
             MusicPreset::LegendaryMetal => {
@@ -160,12 +145,8 @@ impl Theme {
                     ScaleKind::Major,
                     ScaleKind::Mixolydian,
                 ];
-                const PROGS: [[i32; 4]; 4] = [
-                    [0, 3, 4, 0],
-                    [0, 5, 3, 4],
-                    [0, 4, 5, 3],
-                    [0, 2, 5, 4],
-                ];
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 2, 5, 4]];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
         };
@@ -261,12 +242,8 @@ mod tests {
             bpm: Some(123.0),
             progression: Some([0, 3, 4, 0]),
         };
-        let theme = Theme::from_seed_for_preset(
-            81,
-            &overrides,
-            MusicPreset::HeavyMetal,
-            MusicPace::Fast,
-        );
+        let theme =
+            Theme::from_seed_for_preset(81, &overrides, MusicPreset::HeavyMetal, MusicPace::Fast);
         assert_eq!(theme.key_name(), "D");
         assert_eq!(theme.scale, ScaleKind::Major);
         assert_eq!(theme.bpm, 123.0);

@@ -14,11 +14,7 @@ pub enum MusicPreset {
 }
 
 impl MusicPreset {
-    pub const ALL: [Self; 3] = [
-        Self::MythicAmbient,
-        Self::HeavyMetal,
-        Self::LegendaryMetal,
-    ];
+    pub const ALL: [Self; 3] = [Self::MythicAmbient, Self::HeavyMetal, Self::LegendaryMetal];
 
     pub const fn name(self) -> &'static str {
         match self {
@@ -53,5 +49,4 @@ impl MusicPace {
             Self::Fast => "fast",
         }
     }
-
 }

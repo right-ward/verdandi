@@ -268,8 +268,7 @@ impl Engine {
 
     fn begin_loop(&mut self) {
         if let Some(seed) = self.shared.take_seed_request() {
-            let theme =
-                Theme::from_seed_for_preset(seed, &self.overrides, self.preset, self.pace);
+            let theme = Theme::from_seed_for_preset(seed, &self.overrides, self.preset, self.pace);
             self.synth.set_bpm(theme.bpm);
             self.step_len = step_len_samples(theme.bpm, self.sample_rate);
             self.composer = Composer::with_preset(seed, theme, self.preset, self.pace);

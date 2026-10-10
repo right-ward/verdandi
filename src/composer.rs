@@ -167,12 +167,7 @@ impl Composer {
     }
 
     /// Create a composer using one of Verdandi's built-in musical presets.
-    pub fn with_preset(
-        seed: u64,
-        theme: Theme,
-        preset: MusicPreset,
-        pace: MusicPace,
-    ) -> Self {
+    pub fn with_preset(seed: u64, theme: Theme, preset: MusicPreset, pace: MusicPace) -> Self {
         Self {
             preset: Some(preset),
             pace,
@@ -221,7 +216,7 @@ impl Composer {
                 LayerAction::Mutate => mutate(&self.last[li], layer, &self.theme, &mut rng),
                 LayerAction::Regenerate => {
                     generate(layer, &self.theme, &mut rng, self.preset, self.pace)
-                },
+                }
             };
             self.last[li] = events.clone();
             plan.layers[li] = events;
@@ -306,7 +301,11 @@ fn gen_ambient_bass(theme: &Theme) -> Vec<NoteEvent> {
         .map(|bar| NoteEvent {
             step: bar * STEPS_PER_BAR,
             len: STEPS_PER_BAR,
-            note: to_u8(fold_into(theme.midi(theme.progression[bar as usize]), 31, 48)),
+            note: to_u8(fold_into(
+                theme.midi(theme.progression[bar as usize]),
+                31,
+                48,
+            )),
             vel: 0.32,
             timbre: Timbre::Bass,
         })
@@ -334,7 +333,11 @@ fn gen_metal_bass(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEven
         let root = theme.progression[bar as usize];
         for (i, &step) in rhythm.iter().enumerate() {
             let next = rhythm.get(i + 1).copied().unwrap_or(STEPS_PER_BAR);
-            let degree = if i > 0 && rng.chance(0.22) { root + 4 } else { root };
+            let degree = if i > 0 && rng.chance(0.22) {
+                root + 4
+            } else {
+                root
+            };
             out.push(NoteEvent {
                 step: bar * STEPS_PER_BAR + step,
                 len: (next - step).clamp(1, 4),
@@ -348,11 +351,7 @@ fn gen_metal_bass(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEven
 }
 
 fn gen_metal_drums(rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
-    const STANDARD_KICKS: &[&[u32]] = &[
-        &[0, 4, 8, 12],
-        &[0, 6, 8, 12],
-        &[0, 3, 8, 11],
-    ];
+    const STANDARD_KICKS: &[&[u32]] = &[&[0, 4, 8, 12], &[0, 6, 8, 12], &[0, 3, 8, 11]];
     const FAST_KICKS: &[&[u32]] = &[
         &[0, 2, 4, 6, 8, 10, 12, 14],
         &[0, 2, 4, 7, 8, 10, 12, 15],
@@ -371,7 +370,11 @@ fn gen_metal_drums(rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
     for bar in 0..BARS_PER_LOOP {
         let base = bar * STEPS_PER_BAR;
         for &step in kicks {
-            out.push(hit(base + step, Timbre::Kick, if step % 4 == 0 { 1.0 } else { 0.8 }));
+            out.push(hit(
+                base + step,
+                Timbre::Kick,
+                if step % 4 == 0 { 1.0 } else { 0.8 },
+            ));
         }
         for &step in snare {
             out.push(hit(base + step, Timbre::Snare, 0.9));
@@ -796,10 +799,7 @@ fn mutate(events: &[NoteEvent], layer: Layer, theme: &Theme, rng: &mut Rng) -> V
                     if rng.chance(0.12) {
                         continue;
                     }
-                    if layer != Layer::Bass
-                        && layer != Layer::RhythmGuitar
-                        && rng.chance(0.25)
-                    {
+                    if layer != Layer::Bass && layer != Layer::RhythmGuitar && rng.chance(0.25) {
                         let dir = if rng.chance(0.5) { 1 } else { -1 };
                         e.note = to_u8(theme.nudge(ev.note as i32, dir));
                     }
@@ -861,18 +861,45 @@ mod tests {
     fn presets_generate_distinct_layer_families() {
         let seed = 91;
         let ambient_theme = Theme::from_seed_for_preset(
-            seed, &ThemeOverrides::default(), MusicPreset::MythicAmbient, MusicPace::Standard,
+            seed,
+            &ThemeOverrides::default(),
+            MusicPreset::MythicAmbient,
+            MusicPace::Standard,
         );
         let metal_theme = Theme::from_seed_for_preset(
-            seed, &ThemeOverrides::default(), MusicPreset::HeavyMetal, MusicPace::Standard,
+            seed,
+            &ThemeOverrides::default(),
+            MusicPreset::HeavyMetal,
+            MusicPace::Standard,
         );
         let legendary_theme = Theme::from_seed_for_preset(
-            seed, &ThemeOverrides::default(), MusicPreset::LegendaryMetal, MusicPace::Standard,
+            seed,
+            &ThemeOverrides::default(),
+            MusicPreset::LegendaryMetal,
+            MusicPace::Standard,
         );
 
-        let ambient = Composer::with_preset(seed, ambient_theme, MusicPreset::MythicAmbient, MusicPace::Standard).next_loop();
-        let metal = Composer::with_preset(seed, metal_theme, MusicPreset::HeavyMetal, MusicPace::Standard).next_loop();
-        let legendary = Composer::with_preset(seed, legendary_theme, MusicPreset::LegendaryMetal, MusicPace::Standard).next_loop();
+        let ambient = Composer::with_preset(
+            seed,
+            ambient_theme,
+            MusicPreset::MythicAmbient,
+            MusicPace::Standard,
+        )
+        .next_loop();
+        let metal = Composer::with_preset(
+            seed,
+            metal_theme,
+            MusicPreset::HeavyMetal,
+            MusicPace::Standard,
+        )
+        .next_loop();
+        let legendary = Composer::with_preset(
+            seed,
+            legendary_theme,
+            MusicPreset::LegendaryMetal,
+            MusicPace::Standard,
+        )
+        .next_loop();
 
         assert!(ambient.layers[Layer::Drums.index()].is_empty());
         assert!(!ambient.layers[Layer::Strings.index()].is_empty());
