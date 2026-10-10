@@ -506,6 +506,15 @@ jobs:
           toolchain: stable
           cache: true
 
+      - name: Install Linux native dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libasound2-dev
+
       # Verify the packaged crate before making the registry token available.
       - name: Verify crate package
         run: cargo package --locked
