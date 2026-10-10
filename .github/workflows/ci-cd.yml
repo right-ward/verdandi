@@ -22,8 +22,8 @@ on:
           - build
           - release
       branch:
-        description: Branch to build from (workflow definition branch for release)
-        required: true
+        description: Branch to build from (required for build operations)
+        required: false
         type: string
       target:
         description: Platform and architecture to build (build operation only)
@@ -38,6 +38,11 @@ on:
         description: Existing release tag to rebuild and publish (release operation only)
         required: false
         type: string
+      debug_build:
+        description: Build a debug demo binary instead of an optimized release binary
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}
@@ -181,7 +186,7 @@ jobs:
 
           matrix='[
             {"platform":"linux","arch":"x86_64","dispatch_target":"linux-x86_64","target":"x86_64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
-            {"platform":"linux","arch":"aarch64","dispatch_target":"linux-aarch64","target":"aarch64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
+            {"platform":"linux","arch":"aarch64","dispatch_target":"linux-aarch64","target":"aarch64-unknown-linux-gnu","runner":"ubuntu-24.04-arm","archive_ext":"tar.xz"},
             {"platform":"windows","arch":"x86_64","dispatch_target":"windows-x86_64","target":"x86_64-pc-windows-msvc","runner":"windows-latest","archive_ext":"zip"}
           ]'
 
@@ -282,12 +287,20 @@ jobs:
           toolchain: stable
           cache: true
 
-      - name: Configure Linux cross compiler
-        if: matrix.platform == 'linux' && matrix.arch == 'aarch64'
+      - name: Install Linux native dependencies
+        if: matrix.platform == 'linux'
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libasound2-dev \
+            libudev-dev \
+            libx11-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev
 
       - name: Configure Windows build environment
         if: matrix.platform == 'windows'
@@ -335,7 +348,15 @@ jobs:
           fi
 
 
-          cargo_args=(build --release --target "$TARGET")
+          profile=release
+          cargo_args=(build --target "$TARGET" --example demo --locked)
+          if [[ "$OPERATION" != "release" && "$DEBUG_BUILD" == "true" ]]; then
+            profile=debug
+          else
+            cargo_args+=(--release)
+          fi
+
+          echo "profile=$profile" >> build.log
           cargo "${cargo_args[@]}" 2>&1 | tee -a build.log
 
       - name: Package release archive
@@ -345,23 +366,24 @@ jobs:
           BUILD_PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           ARCHIVE_EXT: ${{ matrix.archive_ext }}
+          PROFILE: ${{ inputs.debug_build && inputs.operation != 'release' && 'debug' || 'release' }}
+          REF_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set -euo pipefail
 
-          ref_name="${{ needs.prep_build_matrix.outputs.ref }}"
+          ref_name="$REF_NAME"
           ref_name="${ref_name//\//-}"
 
           release_name="verdandi-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
           package_dir="package/$release_name"
           mkdir -p "$package_dir"
 
-          cp -R data "$package_dir/"
-
+          binary="target/$TARGET/$PROFILE/examples/demo"
           if [[ "$BUILD_PLATFORM" == "windows" ]]; then
-            cp "target/$TARGET/release/verdandi.exe" "$package_dir/"
+            cp "${binary}.exe" "$package_dir/verdandi-demo.exe"
             (cd package && 7z a -tzip -mx=9 "../$release_name.$ARCHIVE_EXT" "$release_name")
           else
-            cp "target/$TARGET/release/verdandi" "$package_dir/"
+            cp "$binary" "$package_dir/verdandi-demo"
             tar -cJf "$release_name.$ARCHIVE_EXT" -C package "$release_name"
           fi
 
@@ -383,6 +405,7 @@ jobs:
           TARGET: ${{ matrix.target }}
           BUILD_PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
+          REF_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set +e
           {
@@ -390,7 +413,7 @@ jobs:
               "platform=${BUILD_PLATFORM}" \
               "arch=${ARCH}" \
               "target=${TARGET}" \
-              "ref=${{ needs.prep_build_matrix.outputs.ref }}"
+              "ref=${REF_NAME}"
             cat build.log 2>/dev/null || true
           } > build-log.txt
           tar caf "build-log-${BUILD_PLATFORM}-${ARCH}.tar.xz" build-log.txt
@@ -410,7 +433,7 @@ jobs:
     if: |
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
       (github.event_name == 'workflow_dispatch' && inputs.operation == 'release')
-    needs: build
+    needs: [prep_build_matrix, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

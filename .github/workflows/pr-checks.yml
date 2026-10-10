@@ -19,20 +19,14 @@ permissions:
 
 jobs:
   format:
-    name: Format PR
-    if: github.actor != 'github-actions[bot]' && github.event.pull_request.head.repo.full_name == github.repository
+    name: Rustfmt
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      changed: ${{ steps.format.outputs.changed }}
-      commit_sha: ${{ steps.format.outputs.commit_sha }}
 
     steps:
-      - name: Checkout PR branch
+      - name: Checkout PR commit
         uses: actions/checkout@v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.sha }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           fetch-depth: 0
 
@@ -42,32 +36,8 @@ jobs:
           toolchain: stable
           cache: true
 
-      - name: Format source
-        id: format
-        shell: bash
-        env:
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-          ORIGINAL_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-
-          cargo fmt --all
-
-          if git diff --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "commit_sha=$ORIGINAL_SHA" >> "$GITHUB_OUTPUT"
-            echo "Formatting is already clean."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add --all
-          git commit -m "chore: apply rustfmt"
-          git push origin "HEAD:$HEAD_BRANCH"
-
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
   clippy:
     name: Clippy
@@ -177,3 +147,38 @@ jobs:
           archive: false
           overwrite: true
 
+  demo:
+    name: Build demo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Install Linux native dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libasound2-dev \
+            libudev-dev \
+            libx11-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Build demo
+        shell: bash
+        run: cargo build --locked --release --example demo

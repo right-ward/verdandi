@@ -42,7 +42,7 @@ jobs:
                 "repos/${GITHUB_REPOSITORY}/actions/workflows" \
                 --paginate \
                 --jq ".workflows[] | select(.name == \"$workflow_name\") | .id" |
-              head -n 1
+              sed -n '1p'
             )"
 
             if [[ -z "$workflow_id" ]]; then
@@ -73,11 +73,11 @@ jobs:
                 --method DELETE \
                 "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}"
 
-              ((deleted += 1))
+              deleted=$((deleted + 1))
             done < runs.txt
 
             echo "Deleted $deleted previous $workflow_name runs."
-            ((total_deleted += deleted))
+            total_deleted=$((total_deleted + deleted))
           done
 
           echo "Deleted $total_deleted workflow runs in total."
