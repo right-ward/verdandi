@@ -296,7 +296,6 @@ jobs:
             build-essential \
             pkg-config \
             libasound2-dev \
-            libudev-dev \
             libx11-dev \
             libxkbcommon-x11-0 \
             libwayland-dev \
@@ -345,7 +344,7 @@ jobs:
 
 
           profile=release
-          cargo_args=(build --target "$TARGET" --example demo --locked)
+          cargo_args=(build --target "$TARGET" --example demo --locked --no-default-features --features demo)
           if [[ "$OPERATION" != "release" && "$DEBUG_BUILD" == "true" ]]; then
             profile=debug
           else
