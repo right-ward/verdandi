@@ -32,8 +32,10 @@ fn main() {
         Some("legendary-metal") | Some("legendary") => MusicPreset::LegendaryMetal,
         _ => MusicPreset::MythicAmbient,
     };
-    let pace = if matches!(preset, MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal)
-        && std::env::args().nth(3).as_deref() == Some("fast")
+    let pace = if matches!(
+        preset,
+        MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal
+    ) && std::env::args().nth(3).as_deref() == Some("fast")
     {
         MusicPace::Fast
     } else {
