@@ -54,10 +54,4 @@ impl MusicPace {
         }
     }
 
-    pub(crate) const fn index(self) -> usize {
-        match self {
-            Self::Standard => 0,
-            Self::Fast => 1,
-        }
-    }
 }
