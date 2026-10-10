@@ -425,8 +425,9 @@ fn gen_rhythm_guitar(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteE
             }
             let next = riff.get(i + 1).copied().unwrap_or(STEPS_PER_BAR);
             let len = (next - step).clamp(1, 3);
-            let root_note = fold_into(theme.midi(root), 36, 59);
-            let fifth_note = fold_into(theme.midi(root + 4), 36, 59);
+            // Keep the root and perfect fifth within the guitar register as a true power chord.
+            let root_note = fold_into(theme.midi(root), 36, 52);
+            let fifth_note = root_note + 7;
             for (note, velocity) in [(root_note, 0.82), (fifth_note, 0.7)] {
                 out.push(NoteEvent {
                     step: bar * STEPS_PER_BAR + step,
@@ -845,6 +846,15 @@ mod tests {
         let mut c = composer(5);
         let first = c.next_loop().layers;
         assert!((0..12).any(|_| c.next_loop().layers != first));
+    }
+
+    #[test]
+    fn preset_layer_membership_matches_arrangement() {
+        assert!(Layer::Strings.used_by(MusicPreset::MythicAmbient));
+        assert!(!Layer::Drums.used_by(MusicPreset::MythicAmbient));
+        assert!(Layer::RhythmGuitar.used_by(MusicPreset::HeavyMetal));
+        assert!(!Layer::Choir.used_by(MusicPreset::HeavyMetal));
+        assert!(Layer::Choir.used_by(MusicPreset::LegendaryMetal));
     }
 
     #[test]

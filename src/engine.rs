@@ -195,10 +195,8 @@ impl MusicShared {
         for layer in Layer::ALL {
             let i = layer.index();
             actions[i] = LayerAction::from_bits((bits >> (i * 2)) & 0b11);
-            enabled[i] = self.layer_enabled(layer);
-            audible[i] = enabled[i]
-                && layer.used_by(self.preset)
-                && intensity >= layer.threshold();
+            enabled[i] = self.layer_enabled(layer) && layer.used_by(self.preset);
+            audible[i] = enabled[i] && intensity >= layer.threshold();
         }
         MusicStatus {
             seed: self.cur_seed.load(Relaxed),
