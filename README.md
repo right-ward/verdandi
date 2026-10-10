@@ -24,11 +24,11 @@ Then the demo. On Ubuntu, install Bevy's native build dependencies first:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y build-essential pkg-config libasound2-dev libudev-dev libx11-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
+sudo apt-get install -y build-essential pkg-config libasound2-dev libx11-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
 ```
 
 ```
-cargo run --release --example demo -- 1234
+cargo run --release --no-default-features --features demo --example demo -- 1234
 ```
 
 Keys: `Left/Right` seed -/+, `N` random seed, `1-8` toggle layers, `Up/Down` intensity (switches to manual), `A` auto intensity, `Space` pause. Seed changes apply at the next loop boundary.
@@ -36,9 +36,9 @@ Keys: `Left/Right` seed -/+, `N` random seed, `1-8` toggle layers, `Up/Down` int
 Choose a preset and pace with the optional arguments (seed, preset, pace):
 
 ```sh
-cargo run --release --example demo -- 1234 mythic-ambient
-cargo run --release --example demo -- 1234 heavy-metal fast
-cargo run --release --example demo -- 1234 legendary-metal
+cargo run --release --no-default-features --features demo --example demo -- 1234 mythic-ambient
+cargo run --release --no-default-features --features demo --example demo -- 1234 heavy-metal fast
+cargo run --release --no-default-features --features demo --example demo -- 1234 legendary-metal
 ```
 
 ## Use it in your game
