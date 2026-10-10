@@ -485,7 +485,13 @@ jobs:
           cache: true
 
       - name: Sync lock file
-        run: cargo update --workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo update --workspace
+          # Resolve every declared feature, including the demo's optional Bevy UI/window features.
+          # Metadata resolves dependencies without compiling native Bevy dependencies.
+          cargo metadata --all-features --format-version 1 > /dev/null
 
       - name: Commit if changed
         run: |
