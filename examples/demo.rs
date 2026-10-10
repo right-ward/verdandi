@@ -1,17 +1,21 @@
-//! `cargo run --release --example demo -- 1234`   (optional seed argument)
+//! `cargo run --release --example demo -- 1234 heavy-metal fast`   (seed, preset, optional pace)
 
 use bevy::prelude::*;
 use verdandi::composer::STEPS_PER_LOOP;
 use verdandi::prelude::{
-    Layer, LayerAction, MusicConfig, MusicController, MusicTrack, ProceduralMusicPlugin,
+    Layer, LayerAction, MusicConfig, MusicController, MusicPace, MusicPreset, MusicTrack,
+    ProceduralMusicPlugin,
 };
 
-const LAYER_KEYS: [(KeyCode, Layer); 5] = [
+const LAYER_KEYS: [(KeyCode, Layer); 8] = [
     (KeyCode::Digit1, Layer::Drums),
     (KeyCode::Digit2, Layer::Bass),
     (KeyCode::Digit3, Layer::Pad),
     (KeyCode::Digit4, Layer::Arp),
     (KeyCode::Digit5, Layer::Lead),
+    (KeyCode::Digit6, Layer::RhythmGuitar),
+    (KeyCode::Digit7, Layer::Strings),
+    (KeyCode::Digit8, Layer::Choir),
 ];
 
 #[derive(Component)]
@@ -22,11 +26,25 @@ fn main() {
         .nth(1)
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(42);
+    let preset = match std::env::args().nth(2).as_deref() {
+        Some("heavy-metal") | Some("metal") => MusicPreset::HeavyMetal,
+        Some("legendary-metal") | Some("legendary") => MusicPreset::LegendaryMetal,
+        _ => MusicPreset::MythicAmbient,
+    };
+    let pace = if preset != MusicPreset::MythicAmbient
+        && std::env::args().nth(3).as_deref() == Some("fast")
+    {
+        MusicPace::Fast
+    } else {
+        MusicPace::Standard
+    };
 
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(ProceduralMusicPlugin::new(MusicConfig {
             seed,
+            preset,
+            pace,
             ..default()
         }))
         .add_systems(Startup, setup_ui)
@@ -51,7 +69,7 @@ fn setup_ui(mut commands: Commands) {
     commands.spawn((
         Text::new(
             "Left/Right: seed -/+   N: random seed   (applies at next loop)\n\
-             1-5: toggle layers   Up/Down: intensity   A: auto intensity   Space: pause",
+             1-8: toggle layers   Up/Down: intensity   A: auto intensity   Space: pause",
         ),
         Node {
             position_type: PositionType::Absolute,
@@ -117,9 +135,11 @@ fn handle_input(
 fn update_info(music: Res<MusicController>, mut text: Single<&mut Text, With<InfoText>>) {
     let st = music.status();
     let mut s = format!(
-        "seed {} (next: {})   {} {}   {:.0} bpm\nloop {}   step {:02}/{}   intensity {:.2} ({})\n\n",
+        "seed {} (next: {})   {} ({})   {} {}   {:.0} bpm\nloop {}   step {:02}/{}   intensity {:.2} ({})\n\n",
         st.seed,
         music.seed(),
+        st.preset.name(),
+        st.pace.name(),
         st.key_name(),
         st.scale.name(),
         st.bpm,

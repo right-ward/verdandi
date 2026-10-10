@@ -22,9 +22,17 @@ on:
           - build
           - release
       branch:
-        description: Branch to build from (workflow definition branch for release)
-        required: true
+        description: Branch to build from (required for build operations)
+        required: false
         type: string
+      example:
+        description: Example to build (build operation only; releases always build demo)
+        required: false
+        default: demo
+        type: choice
+        options:
+          - demo
+          - render_wav
       target:
         description: Platform and architecture to build (build operation only)
         required: false
@@ -38,9 +46,14 @@ on:
         description: Existing release tag to rebuild and publish (release operation only)
         required: false
         type: string
+      debug_build:
+        description: Build a debug example binary instead of an optimized release binary
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
-  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.target }}-${{ inputs.release_tag }}
+  group: cd-${{ github.ref }}-${{ inputs.operation }}-${{ inputs.branch }}-${{ inputs.example }}-${{ inputs.target }}-${{ inputs.release_tag }}
   cancel-in-progress: true
 
 permissions:
@@ -49,7 +62,7 @@ permissions:
 jobs:
   clippy:
     name: Clippy
-    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'build'
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'build' && inputs.branch != ''
     runs-on: ubuntu-latest
 
     steps:
@@ -71,7 +84,7 @@ jobs:
           set +e
 
           : > clippy.log
-          cargo clippy --all-targets --no-default-features -- 2>&1 | tee clippy.log
+          cargo clippy --locked --all-targets --no-default-features -- 2>&1 | tee clippy.log
           clippy_status=${PIPESTATUS[0]}
 
           echo "clippy_status=$clippy_status" >> clippy.log
@@ -98,7 +111,7 @@ jobs:
 
   test:
     name: Test
-    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'build'
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'build' && inputs.branch != ''
     runs-on: ubuntu-latest
 
     steps:
@@ -127,7 +140,7 @@ jobs:
 
           echo >> test.log
           echo '=== cargo test ===' | tee -a test.log
-          cargo test --no-default-features --no-fail-fast 2>&1 | tee -a test.log
+          cargo test --locked --no-default-features --no-fail-fast 2>&1 | tee -a test.log
           test_status=$?
 
           echo >> test.log
@@ -181,7 +194,7 @@ jobs:
 
           matrix='[
             {"platform":"linux","arch":"x86_64","dispatch_target":"linux-x86_64","target":"x86_64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
-            {"platform":"linux","arch":"aarch64","dispatch_target":"linux-aarch64","target":"aarch64-unknown-linux-gnu","runner":"ubuntu-latest","archive_ext":"tar.xz"},
+            {"platform":"linux","arch":"aarch64","dispatch_target":"linux-aarch64","target":"aarch64-unknown-linux-gnu","runner":"ubuntu-24.04-arm","archive_ext":"tar.xz"},
             {"platform":"windows","arch":"x86_64","dispatch_target":"windows-x86_64","target":"x86_64-pc-windows-msvc","runner":"windows-latest","archive_ext":"zip"}
           ]'
 
@@ -282,12 +295,19 @@ jobs:
           toolchain: stable
           cache: true
 
-      - name: Configure Linux cross compiler
-        if: matrix.platform == 'linux' && matrix.arch == 'aarch64'
+      - name: Install Linux native dependencies
+        if: matrix.platform == 'linux' && (github.event_name != 'workflow_dispatch' || inputs.operation == 'release' || inputs.example == 'demo')
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            libasound2-dev \
+            libx11-dev \
+            libxkbcommon-x11-0 \
+            libwayland-dev \
+            libxkbcommon-dev
 
       - name: Configure Windows build environment
         if: matrix.platform == 'windows'
@@ -295,7 +315,7 @@ jobs:
         with:
           arch: ${{ matrix.arch == 'aarch64' && 'amd64_arm64' || 'amd64' }}
 
-      - name: Build release binary
+      - name: Build selected example
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
@@ -303,15 +323,12 @@ jobs:
           ARCH: ${{ matrix.arch }}
           DEBUG_BUILD: ${{ inputs.debug_build }}
           OPERATION: ${{ inputs.operation }}
+          EXAMPLE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'build' && inputs.example || 'demo' }}
         run: |
           set -euo pipefail
 
           : > build.log
           rustup target add "$TARGET"
-
-          if [[ "$BUILD_PLATFORM" == "linux" && "$ARCH" == "aarch64" ]]; then
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-          fi
 
           if [[ "$BUILD_PLATFORM" == "windows" ]]; then
             case "$ARCH" in
@@ -335,33 +352,52 @@ jobs:
           fi
 
 
-          cargo_args=(build --release --target "$TARGET")
+          profile=release
+          cargo_args=(build --target "$TARGET" --example "$EXAMPLE" --locked --no-default-features)
+          if [[ "$EXAMPLE" == "demo" ]]; then
+            cargo_args+=(--features demo)
+          fi
+          if [[ "$OPERATION" != "release" && "$DEBUG_BUILD" == "true" ]]; then
+            profile=debug
+          else
+            cargo_args+=(--release)
+          fi
+
+          echo "profile=$profile" >> build.log
           cargo "${cargo_args[@]}" 2>&1 | tee -a build.log
 
-      - name: Package release archive
+      - name: Package example archive
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
           BUILD_PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
           ARCHIVE_EXT: ${{ matrix.archive_ext }}
+          PROFILE: ${{ inputs.debug_build && inputs.operation != 'release' && 'debug' || 'release' }}
+          OPERATION: ${{ inputs.operation }}
+          EXAMPLE: ${{ github.event_name == 'workflow_dispatch' && inputs.operation == 'build' && inputs.example || 'demo' }}
+          REF_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set -euo pipefail
 
-          ref_name="${{ needs.prep_build_matrix.outputs.ref }}"
+          ref_name="$REF_NAME"
           ref_name="${ref_name//\//-}"
 
-          release_name="verdandi-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$OPERATION" == "build" ]]; then
+            release_name="verdandi-${ref_name}-${EXAMPLE//_/-}-${BUILD_PLATFORM}-${ARCH}"
+          else
+            release_name="verdandi-${ref_name}-${BUILD_PLATFORM}-${ARCH}"
+          fi
           package_dir="package/$release_name"
           mkdir -p "$package_dir"
 
-          cp -R data "$package_dir/"
-
+          binary="target/$TARGET/$PROFILE/examples/$EXAMPLE"
+          binary_name="verdandi-${EXAMPLE//_/-}"
           if [[ "$BUILD_PLATFORM" == "windows" ]]; then
-            cp "target/$TARGET/release/verdandi.exe" "$package_dir/"
+            cp "${binary}.exe" "$package_dir/${binary_name}.exe"
             (cd package && 7z a -tzip -mx=9 "../$release_name.$ARCHIVE_EXT" "$release_name")
           else
-            cp "target/$TARGET/release/verdandi" "$package_dir/"
+            cp "$binary" "$package_dir/$binary_name"
             tar -cJf "$release_name.$ARCHIVE_EXT" -C package "$release_name"
           fi
 
@@ -383,6 +419,7 @@ jobs:
           TARGET: ${{ matrix.target }}
           BUILD_PLATFORM: ${{ matrix.platform }}
           ARCH: ${{ matrix.arch }}
+          REF_NAME: ${{ needs.prep_build_matrix.outputs.ref }}
         run: |
           set +e
           {
@@ -390,7 +427,7 @@ jobs:
               "platform=${BUILD_PLATFORM}" \
               "arch=${ARCH}" \
               "target=${TARGET}" \
-              "ref=${{ needs.prep_build_matrix.outputs.ref }}"
+              "ref=${REF_NAME}"
             cat build.log 2>/dev/null || true
           } > build-log.txt
           tar caf "build-log-${BUILD_PLATFORM}-${ARCH}.tar.xz" build-log.txt
@@ -410,7 +447,7 @@ jobs:
     if: |
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
       (github.event_name == 'workflow_dispatch' && inputs.operation == 'release')
-    needs: build
+    needs: [prep_build_matrix, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -467,7 +504,13 @@ jobs:
           cache: true
 
       - name: Sync lock file
-        run: cargo update --workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo update --workspace
+          # Resolve every declared feature, including the demo's optional Bevy UI/window features.
+          # Metadata resolves dependencies without compiling native Bevy dependencies.
+          cargo metadata --all-features --format-version 1 > /dev/null
 
       - name: Commit if changed
         run: |

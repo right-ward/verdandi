@@ -1,6 +1,7 @@
 //! Scales plus the "theme" (key, mode, tempo, chord progression) derived from the master seed.
 //! The theme is the fixed musical frame; everything generated later stays inside it.
 
+use crate::preset::{MusicPace, MusicPreset};
 use crate::rng::{derive_seed, Rng};
 
 pub const NOTE_NAMES: [&str; 12] = [
@@ -105,6 +106,71 @@ impl Theme {
         }
     }
 
+    /// Build a theme using the musical rules associated with a preset.
+    ///
+    /// Explicit overrides take priority. Preset-specific choices use a separate deterministic
+    /// random stream so they do not perturb other seed-derived values.
+    pub fn from_seed_for_preset(
+        seed: u64,
+        overrides: &ThemeOverrides,
+        preset: MusicPreset,
+        pace: MusicPace,
+    ) -> Self {
+        let mut theme = Self::from_seed(seed, overrides);
+        let mut rng = Rng::new(derive_seed(seed, 0x7072_6573_6574, preset.index() as u64));
+
+        let (scale, progressions): (ScaleKind, &[[i32; 4]]) = match preset {
+            MusicPreset::MythicAmbient => {
+                const SCALES: [ScaleKind; 4] = [
+                    ScaleKind::Major,
+                    ScaleKind::Dorian,
+                    ScaleKind::Mixolydian,
+                    ScaleKind::Minor,
+                ];
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 4, 5, 3], [0, 5, 2, 4], [0, 3, 4, 0], [0, 4, 0, 5]];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
+            MusicPreset::HeavyMetal => {
+                const SCALES: [ScaleKind; 3] =
+                    [ScaleKind::Minor, ScaleKind::Phrygian, ScaleKind::Dorian];
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 5, 6, 4], [0, 6, 5, 6], [0, 3, 0, 4], [0, 5, 4, 3]];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
+            MusicPreset::LegendaryMetal => {
+                const SCALES: [ScaleKind; 4] = [
+                    ScaleKind::Minor,
+                    ScaleKind::Dorian,
+                    ScaleKind::Major,
+                    ScaleKind::Mixolydian,
+                ];
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 2, 5, 4]];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
+        };
+        let progression = *rng.pick(progressions);
+        let bpm = match (preset, pace) {
+            (MusicPreset::MythicAmbient, _) => 58.0 + rng.range(0, 29) as f32,
+            (MusicPreset::HeavyMetal, MusicPace::Standard) => 100.0 + rng.range(0, 61) as f32,
+            (MusicPreset::HeavyMetal, MusicPace::Fast) => 155.0 + rng.range(0, 56) as f32,
+            (MusicPreset::LegendaryMetal, MusicPace::Standard) => 88.0 + rng.range(0, 43) as f32,
+            (MusicPreset::LegendaryMetal, MusicPace::Fast) => 145.0 + rng.range(0, 46) as f32,
+        };
+
+        if overrides.scale.is_none() {
+            theme.scale = scale;
+        }
+        if overrides.progression.is_none() {
+            theme.progression = progression;
+        }
+        if overrides.bpm.is_none() {
+            theme.bpm = bpm.clamp(40.0, 220.0);
+        }
+        theme
+    }
+
     /// MIDI note for a scale degree (0 = tonic, 7 = tonic one octave up, negatives go down).
     pub fn midi(&self, degree: i32) -> i32 {
         let intervals = self.scale.intervals();
@@ -166,6 +232,69 @@ mod tests {
         assert_eq!(a.progression, b.progression);
         assert!((36..=47).contains(&a.tonic));
         assert!((78.0..=120.0).contains(&a.bpm));
+    }
+
+    #[test]
+    fn preset_theme_overrides_take_priority() {
+        let overrides = ThemeOverrides {
+            tonic_pitch_class: Some(2),
+            scale: Some(ScaleKind::Major),
+            bpm: Some(123.0),
+            progression: Some([0, 3, 4, 0]),
+        };
+        let theme =
+            Theme::from_seed_for_preset(81, &overrides, MusicPreset::HeavyMetal, MusicPace::Fast);
+        assert_eq!(theme.key_name(), "D");
+        assert_eq!(theme.scale, ScaleKind::Major);
+        assert_eq!(theme.bpm, 123.0);
+        assert_eq!(theme.progression, [0, 3, 4, 0]);
+    }
+
+    #[test]
+    fn preset_pace_sets_distinct_tempo_ranges() {
+        let standard = Theme::from_seed_for_preset(
+            17,
+            &ThemeOverrides::default(),
+            MusicPreset::HeavyMetal,
+            MusicPace::Standard,
+        );
+        let fast = Theme::from_seed_for_preset(
+            17,
+            &ThemeOverrides::default(),
+            MusicPreset::HeavyMetal,
+            MusicPace::Fast,
+        );
+        assert!((100.0..161.0).contains(&standard.bpm));
+        assert!((155.0..211.0).contains(&fast.bpm));
+        assert_eq!(
+            fast.bpm,
+            Theme::from_seed_for_preset(
+                17,
+                &ThemeOverrides::default(),
+                MusicPreset::HeavyMetal,
+                MusicPace::Fast,
+            )
+            .bpm
+        );
+    }
+
+    #[test]
+    fn ambient_pace_does_not_change_its_musical_profile() {
+        let standard = Theme::from_seed_for_preset(
+            29,
+            &ThemeOverrides::default(),
+            MusicPreset::MythicAmbient,
+            MusicPace::Standard,
+        );
+        let fast = Theme::from_seed_for_preset(
+            29,
+            &ThemeOverrides::default(),
+            MusicPreset::MythicAmbient,
+            MusicPace::Fast,
+        );
+        assert_eq!(standard.bpm, fast.bpm);
+        assert_eq!(standard.scale, fast.scale);
+        assert_eq!(standard.progression, fast.progression);
     }
 
     #[test]

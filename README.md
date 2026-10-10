@@ -1,8 +1,16 @@
 # verdandi
 
-Seed-driven layered procedural music for Bevy. Same seed gives the same evolving track; a new seed gives a different one.
+Seed-driven, layered procedural music for games. Verdandi has three style presets, with every sound synthesized at runtime and no prerecorded audio assets required. The same preset and seed produce the same evolving track.
 
-The seed fixes the **frame** (key, mode, tempo, 4-chord progression). Each loop (4 bars), every **layer** (drums, bass, pad, arp, lead) either repeats its last pattern, mutates it slightly, or regenerates it. Layers fade in and out with an intensity curve. Sound is synthesised in real time, so no audio assets are needed.
+Presets change musical composition as well as timbre:
+
+- **Mythic Ambient** — slow, spacious exploration music with bowed-string-like tones, sustained harmony, and bell-like accents.
+- **Heavy Metal** — riff-driven music with synthesized distorted guitars, bass, and metal-oriented drums.
+- **Legendary Metal** — heavy metal combined with orchestral-string and choir-like layers for a grand, sacred atmosphere.
+
+Select `MusicPace::Fast` for denser, faster metal arrangements. Mythic Ambient keeps its slower tempo range. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
+
+The same seed, preset, pace, and overrides reproduce the same musical patterns. Layer patterns can repeat, mutate, or regenerate at four-bar loop boundaries, while intensity controls when layers become audible.
 
 Targets **Bevy 0.20**.
 
@@ -12,13 +20,38 @@ Test the core using:
 cargo test --no-default-features
 ```
 
-Then the demo (Linux needs `libasound2-dev` and `libudev-dev`):
+Then the demo. On Ubuntu, install Bevy's native build dependencies first:
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential pkg-config libasound2-dev libx11-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
+```
 
 ```
-cargo run --release --example demo -- 1234
+cargo run --release --no-default-features --features demo --example demo -- 1234
 ```
 
-Keys: `Left/Right` seed -/+, `N` random seed, `1-5` toggle layers, `Up/Down` intensity (switches to manual), `A` auto intensity, `Space` pause. Seed changes apply at the next loop boundary.
+Keys: `Left/Right` seed -/+, `N` random seed, `1-8` toggle layers, `Up/Down` intensity (switches to manual), `A` auto intensity, `Space` pause. Seed changes apply at the next loop boundary.
+
+Choose a preset and pace with the optional arguments (seed, preset, pace):
+
+```sh
+cargo run --release --no-default-features --features demo --example demo -- 1234 mythic-ambient
+cargo run --release --no-default-features --features demo --example demo -- 1234 heavy-metal fast
+cargo run --release --no-default-features --features demo --example demo -- 1234 legendary-metal
+```
+
+## Offline WAV renderer
+
+The `render_wav` example generates a standalone stereo, 16-bit PCM WAV file. It uses the engine directly, with no Bevy window, audio device, or extra dependencies, so it can also run in Termux. The requested loop count is rendered to the file; each loop is four bars.
+
+```sh
+cargo run --release --no-default-features --example render_wav -- 1234 mythic-ambient 8 mythic.wav
+cargo run --release --no-default-features --example render_wav -- 1234 heavy-metal 8 heavy.wav fast
+cargo run --release --no-default-features --example render_wav -- 1234 legendary-metal 12 legendary.wav
+```
+
+Arguments are `seed preset loops output.wav [standard|fast]`. Presets also accept the short names `ambient`, `metal`, and `legendary`. WAV output is 44.1 kHz; transfer the generated file to Android or open it in any WAV-capable player.
 
 ## Use it in your game
 
@@ -53,21 +86,26 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 | File | Role |
 |---|---|
 | `rng.rs` | SplitMix64 + `derive_seed(master, tag, index)` so each layer/loop gets an independent, reproducible stream |
-| `theory.rs` | Scales, `Theme` (key/mode/tempo/progression from seed), scale-degree to MIDI |
-| `composer.rs` | Per-layer generators, motif-based lead, mutation, repeat/mutate/regenerate policy per layer |
+| `theory.rs` | Scales and preset-aware `Theme` (key/mode/tempo/progression from seed) |
+| `preset.rs` | The three musical presets and standard/fast pacing |
+| `composer.rs` | Preset-specific layer generators, motif-based melodies and riffs, mutation, repeat/mutate/regenerate policy per layer |
 | `synth.rs` | Small polyphonic synth + drums + stereo delay; no allocation on the hot path |
 | `engine.rs` | Sequencer, `MusicConfig`, lock-free `MusicShared` control/status block |
+| `examples/render_wav.rs` | Headless CLI exporter for fixed-length WAV tracks |
 | `plugin.rs` | Bevy `Decodable` source, `MusicController`, plugin |
 
 ## Tuning and extending
 
 - Feel of "how much changes per loop": `Layer::volatility` in `composer.rs`.
 - When layers enter: `Layer::threshold`; auto curve: `begin_loop` in `engine.rs`.
-- New layer: add a `Layer` variant (update `COUNT`/`ALL`/`name`/`threshold`/`tag`/`volatility`), write a `gen_*` function, add it to `generate` and `mutate`.
-- Better sound: replace `synth.rs` voices (naive saw/pulse aliasing at high notes) or have `NoteEvent`s trigger sampled instruments instead.
+- New preset: add its profile in `preset.rs` and `Theme::from_seed_for_preset`, then provide style-specific generators in `composer.rs`.
+- New layer: add a `Layer` variant (update `COUNT`/`ALL`/`name`/`threshold`/`tag`/`volatility`), write a generator, and handle it in composition and mutation.
+- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models.
 
 ## Known limits
 
 - Fixed 4/4, 16 steps per bar, 4-bar loops.
-- Seed changes wait for the loop boundary (about 8-12 s).
+- Instrument voices are procedural approximations; they do not yet reproduce real acoustic violins, guitars, or choirs.
+- Presets are selected through `MusicConfig`; seamless runtime transitions between presets are not implemented.
+- Seed changes wait for the loop boundary (about 4.6-16.6 s across built-in preset tempo ranges).
 - No crossfade or stinger system yet; intensity gating is note-level, so layers enter on the next note.

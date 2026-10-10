@@ -9,12 +9,17 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64};
 use std::sync::Arc;
 
 use crate::composer::{Composer, Layer, LayerAction, LoopPlan, STEPS_PER_LOOP};
+use crate::preset::{MusicPace, MusicPreset};
 use crate::synth::Synth;
 use crate::theory::{ScaleKind, Theme, ThemeOverrides, NOTE_NAMES};
 
 #[derive(Clone, Debug)]
 pub struct MusicConfig {
     pub seed: u64,
+    /// Musical identity used for composition and synthesis.
+    pub preset: MusicPreset,
+    /// Fast mode increases tempo and rhythmic density for metal presets.
+    pub pace: MusicPace,
     pub sample_rate: u32,
     /// Pin key / mode / tempo / progression instead of deriving them from the seed.
     pub theme: ThemeOverrides,
@@ -30,6 +35,8 @@ impl Default for MusicConfig {
     fn default() -> Self {
         Self {
             seed: 1,
+            preset: MusicPreset::MythicAmbient,
+            pace: MusicPace::Standard,
             sample_rate: 44_100,
             theme: ThemeOverrides::default(),
             auto_intensity: true,
@@ -44,6 +51,8 @@ impl Default for MusicConfig {
 #[derive(Clone, Debug)]
 pub struct MusicStatus {
     pub seed: u64,
+    pub preset: MusicPreset,
+    pub pace: MusicPace,
     pub loop_index: u64,
     pub step: u32,
     pub bpm: f32,
@@ -85,6 +94,8 @@ pub struct MusicShared {
     tonic: AtomicU32,
     scale: AtomicU32,
     actions: AtomicU32,
+    preset: MusicPreset,
+    pace: MusicPace,
 }
 
 impl MusicShared {
@@ -109,6 +120,8 @@ impl MusicShared {
             tonic: AtomicU32::new(36),
             scale: AtomicU32::new(0),
             actions: AtomicU32::new(0),
+            preset: cfg.preset,
+            pace: cfg.pace,
         }
     }
 
@@ -182,11 +195,13 @@ impl MusicShared {
         for layer in Layer::ALL {
             let i = layer.index();
             actions[i] = LayerAction::from_bits((bits >> (i * 2)) & 0b11);
-            enabled[i] = self.layer_enabled(layer);
+            enabled[i] = self.layer_enabled(layer) && layer.used_by(self.preset);
             audible[i] = enabled[i] && intensity >= layer.threshold();
         }
         MusicStatus {
             seed: self.cur_seed.load(Relaxed),
+            preset: self.preset,
+            pace: self.pace,
             loop_index: self.loop_index.load(Relaxed),
             step: self.step.load(Relaxed),
             bpm: load_f32(&self.bpm),
@@ -209,6 +224,8 @@ pub struct Engine {
     overrides: ThemeOverrides,
     period_loops: u32,
     sample_rate: u32,
+    preset: MusicPreset,
+    pace: MusicPace,
     synth: Synth,
     composer: Composer,
     plan: LoopPlan,
@@ -220,7 +237,7 @@ pub struct Engine {
 impl Engine {
     pub fn new(shared: Arc<MusicShared>, cfg: &MusicConfig) -> Self {
         let seed = shared.take_seed_request().unwrap_or(cfg.seed);
-        let theme = Theme::from_seed(seed, &cfg.theme);
+        let theme = Theme::from_seed_for_preset(seed, &cfg.theme, cfg.preset, cfg.pace);
         let step_len = step_len_samples(theme.bpm, cfg.sample_rate);
         let synth = Synth::new(cfg.sample_rate, theme.bpm);
         let engine = Self {
@@ -228,8 +245,10 @@ impl Engine {
             overrides: cfg.theme.clone(),
             period_loops: cfg.auto_intensity_period_loops.max(2),
             sample_rate: cfg.sample_rate,
+            preset: cfg.preset,
+            pace: cfg.pace,
             synth,
-            composer: Composer::new(seed, theme),
+            composer: Composer::with_preset(seed, theme, cfg.preset, cfg.pace),
             plan: LoopPlan::default(),
             step: 0,
             step_len,
@@ -249,10 +268,10 @@ impl Engine {
 
     fn begin_loop(&mut self) {
         if let Some(seed) = self.shared.take_seed_request() {
-            let theme = Theme::from_seed(seed, &self.overrides);
+            let theme = Theme::from_seed_for_preset(seed, &self.overrides, self.preset, self.pace);
             self.synth.set_bpm(theme.bpm);
             self.step_len = step_len_samples(theme.bpm, self.sample_rate);
-            self.composer = Composer::new(seed, theme);
+            self.composer = Composer::with_preset(seed, theme, self.preset, self.pace);
             self.publish_theme();
         }
 
@@ -277,7 +296,9 @@ impl Engine {
         let step_secs = self.step_len as f32 / self.sample_rate as f32;
         let intensity = self.shared.effective_intensity();
         for layer in Layer::ALL {
-            let audible = self.shared.layer_enabled(layer) && intensity >= layer.threshold();
+            let audible = self.shared.layer_enabled(layer)
+                && layer.used_by(self.preset)
+                && intensity >= layer.threshold();
             if !audible {
                 continue;
             }

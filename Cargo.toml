@@ -1,6 +1,6 @@
 [package]
 name = "verdandi"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["right-ward"]
@@ -10,15 +10,38 @@ publish = false
 
 [features]
 default = ["bevy-plugin"]
-# Turn off to use only the core (rng/theory/composer/synth/engine) with no Bevy dependency.
-bevy-plugin = ["dep:bevy"]
+# The plugin needs only Bevy's asset and audio infrastructure; rendering is the host game's choice.
+bevy-plugin = [
+    "dep:bevy",
+    "bevy/std",
+    "bevy/async_executor",
+    "bevy/bevy_asset",
+    "bevy/bevy_audio",
+]
+# The interactive demo adds only the 2D renderer, UI, window/input backend, and built-in font.
+# It intentionally leaves out Bevy's 3D stack, scene/picking systems, gamepad/clipboard support,
+# and encoded audio/image formats because the demo does not use them.
+demo = [
+    "bevy-plugin",
+    "bevy/bevy_input_focus",
+    "bevy/bevy_log",
+    "bevy/bevy_ui_render",
+    "bevy/bevy_winit",
+    "bevy/default_font",
+    "bevy/multi_threaded",
+    "bevy/x11",
+    "bevy/wayland",
+]
 
 [dependencies]
-bevy = { version = "0.20", optional = true }
+bevy = { version = "0.20", optional = true, default-features = false }
+
+[[example]]
+name = "render_wav"
 
 [[example]]
 name = "demo"
-required-features = ["bevy-plugin"]
+required-features = ["demo"]
 
 # Synthesis runs per-sample on the audio thread: unoptimized builds will crackle.
 [profile.dev]

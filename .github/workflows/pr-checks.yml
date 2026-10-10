@@ -1,0 +1,141 @@
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**.rs'
+      - '.github/workflows/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Run Clippy
+        shell: bash
+        run: |
+          set +e
+
+          : > clippy.log
+          cargo clippy --locked --all-targets --no-default-features 2>&1 | tee clippy.log
+          clippy_status=${PIPESTATUS[0]}
+
+          echo "clippy_status=$clippy_status" >> clippy.log
+          if [ "$clippy_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Archive Clippy log
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          tar caf clippy-log.tar.xz clippy.log
+
+      - name: Upload Clippy log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: clippy-log.tar.xz
+          if-no-files-found: error
+          retention-days: 3
+          archive: false
+          overwrite: true
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR commit
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          fetch-depth: 0
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1.17.0
+        with:
+          toolchain: stable
+          cache: true
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set +e
+
+          : > test.log
+          echo '=== cargo test --lib ===' | tee -a test.log
+          cargo test --locked --lib --no-default-features --no-fail-fast 2>&1 | tee -a test.log
+          test_status=${PIPESTATUS[0]}
+
+          echo >> test.log
+          echo "test_status=$test_status" | tee -a test.log
+
+          if [ "$test_status" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Archive test log
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          tar caf test-log.tar.xz test.log
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          path: test-log.tar.xz
+          if-no-files-found: error
+          retention-days: 3
+          archive: false
+          overwrite: true
