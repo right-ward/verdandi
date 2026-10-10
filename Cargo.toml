@@ -52,3 +52,9 @@ opt-level = 3
 
 [profile.dev.package.verdandi]
 opt-level = 3
+
+[profile.release]
+codegen-units = 10
+lto = true
+opt-level = "s"
+strip = true
