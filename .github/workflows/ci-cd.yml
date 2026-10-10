@@ -47,7 +47,7 @@ on:
         required: false
         type: string
       debug_build:
-        description: Build a debug demo binary instead of an optimized release binary
+        description: Build a debug example binary instead of an optimized release binary
         required: false
         default: false
         type: boolean
