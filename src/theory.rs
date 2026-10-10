@@ -131,6 +131,18 @@ impl Theme {
                     [[0, 4, 5, 3], [0, 5, 2, 4], [0, 3, 4, 0], [0, 4, 0, 5]];
                 (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
             }
+            MusicPreset::ClassicalAmbient => {
+                const SCALES: [ScaleKind; 4] = [
+                    ScaleKind::Major,
+                    ScaleKind::Mixolydian,
+                    ScaleKind::Dorian,
+                    ScaleKind::Minor,
+                ];
+                // Stately, slow-moving progressions; distinct from Mythic Ambient.
+                const PROGS: [[i32; 4]; 4] =
+                    [[0, 4, 5, 3], [0, 5, 4, 3], [0, 3, 4, 0], [0, 2, 5, 4]];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
             MusicPreset::HeavyMetal => {
                 const SCALES: [ScaleKind; 3] =
                     [ScaleKind::Minor, ScaleKind::Phrygian, ScaleKind::Dorian];
@@ -153,6 +165,7 @@ impl Theme {
         let progression = *rng.pick(progressions);
         let bpm = match (preset, pace) {
             (MusicPreset::MythicAmbient, _) => 58.0 + rng.range(0, 29) as f32,
+            (MusicPreset::ClassicalAmbient, _) => 62.0 + rng.range(0, 34) as f32,
             (MusicPreset::HeavyMetal, MusicPace::Standard) => 100.0 + rng.range(0, 61) as f32,
             (MusicPreset::HeavyMetal, MusicPace::Fast) => 155.0 + rng.range(0, 56) as f32,
             (MusicPreset::LegendaryMetal, MusicPace::Standard) => 88.0 + rng.range(0, 43) as f32,
@@ -295,6 +308,26 @@ mod tests {
         assert_eq!(standard.bpm, fast.bpm);
         assert_eq!(standard.scale, fast.scale);
         assert_eq!(standard.progression, fast.progression);
+    }
+
+    #[test]
+    fn classical_ambient_pace_does_not_change_its_musical_profile() {
+        let standard = Theme::from_seed_for_preset(
+            29,
+            &ThemeOverrides::default(),
+            MusicPreset::ClassicalAmbient,
+            MusicPace::Standard,
+        );
+        let fast = Theme::from_seed_for_preset(
+            29,
+            &ThemeOverrides::default(),
+            MusicPreset::ClassicalAmbient,
+            MusicPace::Fast,
+        );
+        assert_eq!(standard.bpm, fast.bpm);
+        assert_eq!(standard.scale, fast.scale);
+        assert_eq!(standard.progression, fast.progression);
+        assert!((62.0..96.0).contains(&standard.bpm));
     }
 
     #[test]

@@ -224,22 +224,30 @@ impl Voice {
                 self.lp * self.adsr(0.02, 0.12, 0.7, 0.18)
             }
             Timbre::Guitar => {
+                // Keep the oscillator in phase: the old detuned second saw created a
+                // pronounced beating/bubbly quality that distracted from the heavy tone.
                 self.phase = (self.phase + self.freq * dt).fract();
-                self.phase2 = (self.phase2 + self.freq * 1.003 * dt).fract();
-                let raw = (2.0 * self.phase - 1.0) * 0.75 + (2.0 * self.phase2 - 1.0) * 0.25;
-                let cutoff = 280.0 + 3200.0 * (-ts * 9.0).exp();
+                let saw = 2.0 * self.phase - 1.0;
+                let pulse = if self.phase < 0.5 { 1.0 } else { -1.0 };
+                let raw = saw * 0.78 + pulse * 0.22;
+                // A darker attack and a lower sustained cutoff give the voice more weight.
+                let cutoff = 240.0 + 2200.0 * (-ts * 14.0).exp();
                 let a = 1.0 - (-TAU * cutoff * dt).exp();
                 self.lp += a * (raw - self.lp);
-                (self.lp * 4.2).tanh() * self.adsr(0.003, 0.08, 0.68, 0.1)
+                (self.lp * 5.0).tanh() * self.adsr(0.003, 0.07, 0.72, 0.08)
             }
             Timbre::Strings => {
                 let vib = 1.0 + 0.0035 * (TAU * 5.2 * ts).sin() * (ts * 3.0).min(1.0);
                 self.phase = (self.phase + self.freq * vib * dt).fract();
-                self.phase2 = (self.phase2 + self.freq * 1.004 * dt).fract();
-                let bowed = (2.0 * self.phase - 1.0) * 0.55
-                    + (self.phase * TAU).sin() * 0.35
-                    + (2.0 * self.phase2 - 1.0) * 0.1;
-                let a = 1.0 - (-TAU * 1800.0 * dt).exp();
+                // Keep only a very slight second oscillator blend: strong detuning made
+                // sustained chords sound wobbly and more like brass than bowed strings.
+                self.phase2 = (self.phase2 + self.freq * 1.0015 * dt).fract();
+                let fundamental = (self.phase * TAU).sin();
+                let upper = (self.phase * TAU * 2.0).sin();
+                let body = 2.0 * self.phase - 1.0;
+                let companion = 2.0 * self.phase2 - 1.0;
+                let bowed = fundamental * 0.58 + body * 0.2 + upper * 0.14 + companion * 0.08;
+                let a = 1.0 - (-TAU * 1450.0 * dt).exp();
                 self.lp += a * (bowed - self.lp);
                 self.lp * self.adsr(0.16, 0.28, 0.82, 0.82)
             }

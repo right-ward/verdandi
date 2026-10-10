@@ -40,11 +40,12 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let preset = match args[1].as_str() {
         "mythic-ambient" | "ambient" => MusicPreset::MythicAmbient,
+        "classical-ambient" | "classical" => MusicPreset::ClassicalAmbient,
         "heavy-metal" | "metal" => MusicPreset::HeavyMetal,
         "legendary-metal" | "legendary" => MusicPreset::LegendaryMetal,
         other => {
             return Err(format!(
-                "unknown preset {other:?}; use mythic-ambient, heavy-metal, or legendary-metal"
+                "unknown preset {other:?}; use mythic-ambient, classical-ambient, heavy-metal, or legendary-metal"
             )
             .into());
         }
