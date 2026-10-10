@@ -246,8 +246,7 @@ impl Voice {
                 let upper = (self.phase * TAU * 2.0).sin();
                 let body = 2.0 * self.phase - 1.0;
                 let companion = 2.0 * self.phase2 - 1.0;
-                let bowed =
-                    fundamental * 0.58 + body * 0.2 + upper * 0.14 + companion * 0.08;
+                let bowed = fundamental * 0.58 + body * 0.2 + upper * 0.14 + companion * 0.08;
                 let a = 1.0 - (-TAU * 1450.0 * dt).exp();
                 self.lp += a * (bowed - self.lp);
                 self.lp * self.adsr(0.16, 0.28, 0.82, 0.82)
