@@ -120,7 +120,7 @@ impl Theme {
         let mut rng = Rng::new(derive_seed(
             seed,
             0x7072_6573_6574,
-            (preset.index() * 2 + pace.index()) as u64,
+            preset.index() as u64,
         ));
 
         let (scale, progressions): (ScaleKind, &[[i32; 4]]) = match preset {
@@ -299,6 +299,25 @@ mod tests {
             )
             .bpm
         );
+    }
+
+    #[test]
+    fn ambient_pace_does_not_change_its_musical_profile() {
+        let standard = Theme::from_seed_for_preset(
+            29,
+            &ThemeOverrides::default(),
+            MusicPreset::MythicAmbient,
+            MusicPace::Standard,
+        );
+        let fast = Theme::from_seed_for_preset(
+            29,
+            &ThemeOverrides::default(),
+            MusicPreset::MythicAmbient,
+            MusicPace::Fast,
+        );
+        assert_eq!(standard.bpm, fast.bpm);
+        assert_eq!(standard.scale, fast.scale);
+        assert_eq!(standard.progression, fast.progression);
     }
 
     #[test]

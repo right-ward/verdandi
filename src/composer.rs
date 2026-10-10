@@ -795,7 +795,10 @@ fn mutate(events: &[NoteEvent], layer: Layer, theme: &Theme, rng: &mut Rng) -> V
                     if rng.chance(0.12) {
                         continue;
                     }
-                    if layer != Layer::Bass && rng.chance(0.25) {
+                    if layer != Layer::Bass
+                        && layer != Layer::RhythmGuitar
+                        && rng.chance(0.25)
+                    {
                         let dir = if rng.chance(0.5) { 1 } else { -1 };
                         e.note = to_u8(theme.nudge(ev.note as i32, dir));
                     }
