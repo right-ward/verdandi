@@ -9,6 +9,7 @@
 
 pub mod composer;
 pub mod engine;
+pub mod preset;
 pub mod rng;
 pub mod synth;
 pub mod theory;
@@ -19,6 +20,7 @@ pub mod plugin;
 pub mod prelude {
     pub use crate::composer::{Layer, LayerAction, LoopPlan, NoteEvent};
     pub use crate::engine::{Engine, MusicConfig, MusicShared, MusicStatus};
+    pub use crate::preset::{MusicPace, MusicPreset};
     pub use crate::theory::{ScaleKind, Theme, ThemeOverrides};
 
     #[cfg(feature = "bevy-plugin")]

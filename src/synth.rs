@@ -14,6 +14,10 @@ pub enum Timbre {
     Pad,
     Pluck,
     Lead,
+    Guitar,
+    Strings,
+    Choir,
+    Bell,
 }
 
 pub fn midi_to_hz(note: u8) -> f32 {
@@ -32,6 +36,10 @@ fn level(timbre: Timbre) -> f32 {
         Timbre::Pad => 0.2,
         Timbre::Pluck => 0.3,
         Timbre::Lead => 0.28,
+        Timbre::Guitar => 0.36,
+        Timbre::Strings => 0.28,
+        Timbre::Choir => 0.2,
+        Timbre::Bell => 0.24,
     }
 }
 
@@ -45,6 +53,10 @@ fn default_pan(timbre: Timbre, note: u8) -> f32 {
         Timbre::Pad => spread * 1.4,
         Timbre::Pluck => spread * 1.2,
         Timbre::Lead => 0.1,
+        Timbre::Guitar => spread * 0.7,
+        Timbre::Strings => spread * 1.1,
+        Timbre::Choir => spread * 1.4,
+        Timbre::Bell => spread * 1.2,
     }
 }
 
@@ -84,6 +96,10 @@ impl Voice {
             Timbre::Bass => gate + (0.08 * sr) as u32,
             Timbre::Pad => gate + (0.9 * sr) as u32,
             Timbre::Lead => gate + (0.18 * sr) as u32,
+            Timbre::Guitar => gate + (0.12 * sr) as u32,
+            Timbre::Strings => gate + (0.9 * sr) as u32,
+            Timbre::Choir => gate + (0.9 * sr) as u32,
+            Timbre::Bell => (1.6 * sr) as u32,
         };
         let angle = (pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
         Self {
@@ -207,6 +223,43 @@ impl Voice {
                 self.lp += a * ((saw * 0.6 + sine * 0.5) - self.lp);
                 self.lp * self.adsr(0.02, 0.12, 0.7, 0.18)
             }
+            Timbre::Guitar => {
+                self.phase = (self.phase + self.freq * dt).fract();
+                self.phase2 = (self.phase2 + self.freq * 1.003 * dt).fract();
+                let raw = (2.0 * self.phase - 1.0) * 0.75 + (2.0 * self.phase2 - 1.0) * 0.25;
+                let cutoff = 280.0 + 3200.0 * (-ts * 9.0).exp();
+                let a = 1.0 - (-TAU * cutoff * dt).exp();
+                self.lp += a * (raw - self.lp);
+                (self.lp * 4.2).tanh() * self.adsr(0.003, 0.08, 0.68, 0.1)
+            }
+            Timbre::Strings => {
+                let vib = 1.0 + 0.0035 * (TAU * 5.2 * ts).sin() * (ts * 3.0).min(1.0);
+                self.phase = (self.phase + self.freq * vib * dt).fract();
+                self.phase2 = (self.phase2 + self.freq * 1.004 * dt).fract();
+                let bowed = (2.0 * self.phase - 1.0) * 0.55
+                    + (self.phase * TAU).sin() * 0.35
+                    + (2.0 * self.phase2 - 1.0) * 0.1;
+                let a = 1.0 - (-TAU * 1800.0 * dt).exp();
+                self.lp += a * (bowed - self.lp);
+                self.lp * self.adsr(0.16, 0.28, 0.82, 0.82)
+            }
+            Timbre::Choir => {
+                self.phase = (self.phase + self.freq * dt).fract();
+                self.phase2 = (self.phase2 + self.freq * 2.01 * dt).fract();
+                let fundamental = (self.phase * TAU).sin();
+                let upper = (self.phase2 * TAU).sin();
+                let formants = fundamental * 0.75 + upper * 0.2 + (fundamental * 2.0).sin() * 0.05;
+                let a = 1.0 - (-TAU * 1200.0 * dt).exp();
+                self.lp += a * (formants - self.lp);
+                self.lp * self.adsr(0.22, 0.32, 0.82, 0.9)
+            }
+            Timbre::Bell => {
+                self.phase = (self.phase + self.freq * dt).fract();
+                self.phase2 = (self.phase2 + self.freq * 2.76 * dt).fract();
+                let fundamental = (self.phase * TAU).sin();
+                let partial = (self.phase2 * TAU).sin();
+                (fundamental * 0.75 + partial * 0.25) * (-ts * 2.8).exp()
+            }
         };
 
         self.t += 1;
@@ -304,7 +357,10 @@ impl Synth {
             let s = v.tick();
             l += s * v.gain_l;
             r += s * v.gain_r;
-            if matches!(v.timbre, Timbre::Pluck | Timbre::Lead) {
+            if matches!(
+                v.timbre,
+                Timbre::Pluck | Timbre::Lead | Timbre::Strings | Timbre::Choir | Timbre::Bell
+            ) {
                 send += s;
             }
         }

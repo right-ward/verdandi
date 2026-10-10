@@ -1,6 +1,7 @@
 //! Scales plus the "theme" (key, mode, tempo, chord progression) derived from the master seed.
 //! The theme is the fixed musical frame; everything generated later stays inside it.
 
+use crate::preset::{MusicPace, MusicPreset};
 use crate::rng::{derive_seed, Rng};
 
 pub const NOTE_NAMES: [&str; 12] = [
@@ -103,6 +104,73 @@ impl Theme {
             bpm: overrides.bpm.unwrap_or(bpm).clamp(40.0, 220.0),
             progression: overrides.progression.unwrap_or(progression),
         }
+    }
+
+    /// Build a theme using the musical rules associated with a preset.
+    ///
+    /// Explicit overrides take priority. Preset-specific choices use a separate deterministic
+    /// random stream so they do not perturb other seed-derived values.
+    pub fn from_seed_for_preset(
+        seed: u64,
+        overrides: &ThemeOverrides,
+        preset: MusicPreset,
+        pace: MusicPace,
+    ) -> Self {
+        let mut theme = Self::from_seed(seed, overrides);
+        let mut rng = Rng::new(derive_seed(
+            seed,
+            0x7072_6573_6574,
+            (preset.index() * 2 + pace.index()) as u64,
+        ));
+
+        let (scale, progressions): (ScaleKind, &[[i32; 4]]) = match preset {
+            MusicPreset::MythicAmbient => {
+                const SCALES: [ScaleKind; 4] = [
+                    ScaleKind::Major, ScaleKind::Dorian, ScaleKind::Mixolydian, ScaleKind::Minor,
+                ];
+                const PROGS: [[i32; 4]; 4] = [
+                    [0, 4, 5, 3], [0, 5, 2, 4], [0, 3, 4, 0], [0, 4, 0, 5],
+                ];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
+            MusicPreset::HeavyMetal => {
+                const SCALES: [ScaleKind; 3] = [
+                    ScaleKind::Minor, ScaleKind::Phrygian, ScaleKind::Dorian,
+                ];
+                const PROGS: [[i32; 4]; 4] = [
+                    [0, 5, 6, 4], [0, 6, 5, 6], [0, 3, 0, 4], [0, 5, 4, 3],
+                ];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
+            MusicPreset::LegendaryMetal => {
+                const SCALES: [ScaleKind; 4] = [
+                    ScaleKind::Minor, ScaleKind::Dorian, ScaleKind::Major, ScaleKind::Mixolydian,
+                ];
+                const PROGS: [[i32; 4]; 4] = [
+                    [0, 3, 4, 0], [0, 5, 3, 4], [0, 4, 5, 3], [0, 2, 5, 4],
+                ];
+                (SCALES[rng.range(0, SCALES.len() as u32) as usize], &PROGS)
+            }
+        };
+        let progression = *rng.pick(progressions);
+        let bpm = match (preset, pace) {
+            (MusicPreset::MythicAmbient, _) => 58.0 + rng.range(0, 29) as f32,
+            (MusicPreset::HeavyMetal, MusicPace::Standard) => 100.0 + rng.range(0, 61) as f32,
+            (MusicPreset::HeavyMetal, MusicPace::Fast) => 155.0 + rng.range(0, 56) as f32,
+            (MusicPreset::LegendaryMetal, MusicPace::Standard) => 88.0 + rng.range(0, 43) as f32,
+            (MusicPreset::LegendaryMetal, MusicPace::Fast) => 145.0 + rng.range(0, 46) as f32,
+        };
+
+        if overrides.scale.is_none() {
+            theme.scale = scale;
+        }
+        if overrides.progression.is_none() {
+            theme.progression = progression;
+        }
+        if overrides.bpm.is_none() {
+            theme.bpm = bpm.clamp(40.0, 220.0);
+        }
+        theme
     }
 
     /// MIDI note for a scale degree (0 = tonic, 7 = tonic one octave up, negatives go down).

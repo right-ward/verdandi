@@ -4,6 +4,7 @@
 //! slightly, or *regenerate* it from scratch. All randomness comes from sub-seeds derived from
 //! (master seed, layer, loop index), so the same seed always yields the same evolving track.
 
+use crate::preset::{MusicPace, MusicPreset};
 use crate::rng::{derive_seed, Rng};
 use crate::synth::Timbre;
 use crate::theory::{fold_into, Theme};
@@ -19,16 +20,22 @@ pub enum Layer {
     Pad,
     Arp,
     Lead,
+    RhythmGuitar,
+    Strings,
+    Choir,
 }
 
 impl Layer {
-    pub const COUNT: usize = 5;
-    pub const ALL: [Layer; 5] = [
+    pub const COUNT: usize = 8;
+    pub const ALL: [Layer; 8] = [
         Layer::Drums,
         Layer::Bass,
         Layer::Pad,
         Layer::Arp,
         Layer::Lead,
+        Layer::RhythmGuitar,
+        Layer::Strings,
+        Layer::Choir,
     ];
 
     pub fn index(self) -> usize {
@@ -42,6 +49,9 @@ impl Layer {
             Layer::Pad => "Pad",
             Layer::Arp => "Arp",
             Layer::Lead => "Lead",
+            Layer::RhythmGuitar => "Rhythm Guitar",
+            Layer::Strings => "Strings",
+            Layer::Choir => "Choir",
         }
     }
 
@@ -53,6 +63,9 @@ impl Layer {
             Layer::Drums => 0.35,
             Layer::Arp => 0.55,
             Layer::Lead => 0.75,
+            Layer::RhythmGuitar => 0.3,
+            Layer::Strings => 0.2,
+            Layer::Choir => 0.35,
         }
     }
 
@@ -68,6 +81,9 @@ impl Layer {
             Layer::Pad => (0.3, 0.0),
             Layer::Arp => (0.3, 0.4),
             Layer::Lead => (0.2, 0.4),
+            Layer::RhythmGuitar => (0.45, 0.35),
+            Layer::Strings => (0.45, 0.2),
+            Layer::Choir => (0.5, 0.2),
         }
     }
 }
@@ -118,15 +134,34 @@ pub struct Composer {
     theme: Theme,
     next_loop: u64,
     last: [Vec<NoteEvent>; Layer::COUNT],
+    preset: Option<MusicPreset>,
+    pace: MusicPace,
 }
 
 impl Composer {
+    /// Create a composer with the original general-purpose procedural style.
     pub fn new(seed: u64, theme: Theme) -> Self {
         Self {
             seed,
             theme,
             next_loop: 0,
             last: Default::default(),
+            preset: None,
+            pace: MusicPace::Standard,
+        }
+    }
+
+    /// Create a composer using one of Verdandi's built-in musical presets.
+    pub fn with_preset(
+        seed: u64,
+        theme: Theme,
+        preset: MusicPreset,
+        pace: MusicPace,
+    ) -> Self {
+        Self {
+            preset: Some(preset),
+            pace,
+            ..Self::new(seed, theme)
         }
     }
 
@@ -169,7 +204,9 @@ impl Composer {
             let events = match action {
                 LayerAction::Repeat => self.last[li].clone(),
                 LayerAction::Mutate => mutate(&self.last[li], layer, &self.theme, &mut rng),
-                LayerAction::Regenerate => generate(layer, &self.theme, &mut rng),
+                LayerAction::Regenerate => {
+                    generate(layer, &self.theme, &mut rng, self.preset, self.pace)
+                },
             };
             self.last[li] = events.clone();
             plan.layers[li] = events;
@@ -179,14 +216,260 @@ impl Composer {
     }
 }
 
-fn generate(layer: Layer, theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+fn generate(
+    layer: Layer,
+    theme: &Theme,
+    rng: &mut Rng,
+    preset: Option<MusicPreset>,
+    pace: MusicPace,
+) -> Vec<NoteEvent> {
+    if let Some(preset) = preset {
+        return generate_for_preset(layer, theme, rng, preset, pace);
+    }
+
     match layer {
         Layer::Drums => gen_drums(rng),
         Layer::Bass => gen_bass(theme, rng),
         Layer::Pad => gen_pad(theme, rng),
         Layer::Arp => gen_arp(theme, rng),
-        Layer::Lead => gen_lead(theme, rng),
+        Layer::Lead => gen_lead_with_timbre(theme, rng, Timbre::Lead),
+        Layer::RhythmGuitar | Layer::Strings | Layer::Choir => Vec::new(),
     }
+}
+
+fn generate_for_preset(
+    layer: Layer,
+    theme: &Theme,
+    rng: &mut Rng,
+    preset: MusicPreset,
+    pace: MusicPace,
+) -> Vec<NoteEvent> {
+    match layer {
+        Layer::Drums => match preset {
+            MusicPreset::MythicAmbient => Vec::new(),
+            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => gen_metal_drums(rng, pace),
+        },
+        Layer::Bass => match preset {
+            MusicPreset::MythicAmbient => gen_ambient_bass(theme),
+            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => gen_metal_bass(theme, rng, pace),
+        },
+        Layer::Pad => match preset {
+            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_pad(theme, rng),
+            MusicPreset::HeavyMetal => Vec::new(),
+        },
+        Layer::Arp => match preset {
+            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_ambient_arp(theme, rng),
+            MusicPreset::HeavyMetal => Vec::new(),
+        },
+        Layer::Lead => match preset {
+            MusicPreset::MythicAmbient => gen_lead_with_timbre(theme, rng, Timbre::Strings),
+            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
+                gen_lead_with_timbre(theme, rng, Timbre::Guitar)
+            }
+        },
+        Layer::RhythmGuitar => match preset {
+            MusicPreset::MythicAmbient => Vec::new(),
+            MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => gen_rhythm_guitar(theme, rng, pace),
+        },
+        Layer::Strings => match preset {
+            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_strings(theme, rng),
+            MusicPreset::HeavyMetal => Vec::new(),
+        },
+        Layer::Choir => match preset {
+            MusicPreset::LegendaryMetal => gen_choir(theme),
+            MusicPreset::MythicAmbient | MusicPreset::HeavyMetal => Vec::new(),
+        },
+    }
+}
+
+fn gen_ambient_bass(theme: &Theme) -> Vec<NoteEvent> {
+    (0..BARS_PER_LOOP)
+        .map(|bar| NoteEvent {
+            step: bar * STEPS_PER_BAR,
+            len: STEPS_PER_BAR,
+            note: to_u8(fold_into(theme.midi(theme.progression[bar as usize]), 31, 48)),
+            vel: 0.32,
+            timbre: Timbre::Bass,
+        })
+        .collect()
+}
+
+fn gen_metal_bass(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
+    const STANDARD_RHYTHMS: &[&[u32]] = &[
+        &[0, 4, 8, 12], &[0, 3, 6, 8, 11, 12], &[0, 2, 4, 6, 8, 10, 12, 14],
+    ];
+    const FAST_RHYTHMS: &[&[u32]] = &[
+        &[0, 2, 4, 6, 8, 10, 12, 14], &[0, 1, 4, 5, 8, 9, 12, 13],
+        &[0, 3, 4, 7, 8, 11, 12, 15],
+    ];
+    let rhythm = if pace == MusicPace::Fast {
+        *rng.pick(FAST_RHYTHMS)
+    } else {
+        *rng.pick(STANDARD_RHYTHMS)
+    };
+    let mut out = Vec::new();
+    for bar in 0..BARS_PER_LOOP {
+        let root = theme.progression[bar as usize];
+        for (i, &step) in rhythm.iter().enumerate() {
+            let next = rhythm.get(i + 1).copied().unwrap_or(STEPS_PER_BAR);
+            let degree = if i > 0 && rng.chance(0.22) { root + 4 } else { root };
+            out.push(NoteEvent {
+                step: bar * STEPS_PER_BAR + step,
+                len: (next - step).clamp(1, 4),
+                note: to_u8(fold_into(theme.midi(degree), 28, 50)),
+                vel: if step % 4 == 0 { 0.88 } else { 0.68 },
+                timbre: Timbre::Bass,
+            });
+        }
+    }
+    out
+}
+
+fn gen_metal_drums(rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
+    const STANDARD_KICKS: &[&[u32]] = &[
+        &[0, 4, 8, 12], &[0, 6, 8, 12], &[0, 3, 8, 11],
+    ];
+    const FAST_KICKS: &[&[u32]] = &[
+        &[0, 2, 4, 6, 8, 10, 12, 14], &[0, 2, 4, 7, 8, 10, 12, 15],
+        &[0, 3, 4, 6, 8, 11, 12, 14],
+    ];
+    const SNARES: &[&[u32]] = &[&[4, 12], &[4, 12], &[4, 10, 12]];
+    let kicks = if pace == MusicPace::Fast {
+        *rng.pick(FAST_KICKS)
+    } else {
+        *rng.pick(STANDARD_KICKS)
+    };
+    let snare = *rng.pick(SNARES);
+    let hat_step = if pace == MusicPace::Fast { 1 } else { 2 };
+    let mut out = Vec::new();
+
+    for bar in 0..BARS_PER_LOOP {
+        let base = bar * STEPS_PER_BAR;
+        for &step in kicks {
+            out.push(hit(base + step, Timbre::Kick, if step % 4 == 0 { 1.0 } else { 0.8 }));
+        }
+        for &step in snare {
+            out.push(hit(base + step, Timbre::Snare, 0.9));
+        }
+        if bar == BARS_PER_LOOP - 1 && rng.chance(0.75) {
+            for (i, step) in [13u32, 14, 15].into_iter().enumerate() {
+                if rng.chance(0.65) {
+                    out.push(hit(base + step, Timbre::Snare, 0.45 + 0.12 * i as f32));
+                }
+            }
+        }
+        let mut step = 0;
+        while step < STEPS_PER_BAR {
+            if !rng.chance(if pace == MusicPace::Fast { 0.04 } else { 0.09 }) {
+                let timbre = if step == 14 && rng.chance(0.55) {
+                    Timbre::OpenHat
+                } else {
+                    Timbre::Hat
+                };
+                let velocity = if step % 4 == 0 { 0.72 } else { 0.45 };
+                out.push(hit(base + step, timbre, velocity));
+            }
+            step += hat_step;
+        }
+    }
+    out
+}
+
+fn gen_rhythm_guitar(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteEvent> {
+    const STANDARD_RIFFS: &[&[u32]] = &[
+        &[0, 4, 7, 8, 12], &[0, 3, 6, 8, 11, 12], &[0, 2, 4, 6, 8, 10, 12, 14],
+    ];
+    const FAST_RIFFS: &[&[u32]] = &[
+        &[0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14],
+        &[0, 2, 3, 4, 6, 7, 8, 10, 11, 12, 14, 15], &[0, 2, 4, 6, 8, 10, 12, 14],
+    ];
+    let riff = if pace == MusicPace::Fast {
+        *rng.pick(FAST_RIFFS)
+    } else {
+        *rng.pick(STANDARD_RIFFS)
+    };
+    let mut out = Vec::new();
+    for bar in 0..BARS_PER_LOOP {
+        let root = theme.progression[bar as usize];
+        for (i, &step) in riff.iter().enumerate() {
+            if rng.chance(if pace == MusicPace::Fast { 0.08 } else { 0.16 }) {
+                continue;
+            }
+            let next = riff.get(i + 1).copied().unwrap_or(STEPS_PER_BAR);
+            let len = (next - step).clamp(1, 3);
+            let root_note = fold_into(theme.midi(root), 36, 59);
+            let fifth_note = fold_into(theme.midi(root + 4), 36, 59);
+            for (note, velocity) in [(root_note, 0.82), (fifth_note, 0.7)] {
+                out.push(NoteEvent {
+                    step: bar * STEPS_PER_BAR + step,
+                    len,
+                    note: to_u8(note),
+                    vel: velocity,
+                    timbre: Timbre::Guitar,
+                });
+            }
+        }
+    }
+    out
+}
+
+fn gen_ambient_arp(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+    let pattern = [0, 2, 4, 7, 4, 2, 7, 4];
+    let mut out = Vec::new();
+    for bar in 0..BARS_PER_LOOP {
+        let root = theme.progression[bar as usize];
+        for (i, &step) in [0u32, 4, 8, 12].iter().enumerate() {
+            if rng.chance(0.2) {
+                continue;
+            }
+            out.push(NoteEvent {
+                step: bar * STEPS_PER_BAR + step,
+                len: 3,
+                note: to_u8(fold_into(theme.midi(7 + root + pattern[i]), 57, 88)),
+                vel: if step == 0 { 0.4 } else { 0.28 },
+                timbre: Timbre::Bell,
+            });
+        }
+    }
+    out
+}
+
+fn gen_strings(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+    let mut out = Vec::new();
+    for bar in 0..BARS_PER_LOOP {
+        let root = theme.progression[bar as usize];
+        let mut degrees = vec![root, root + 2, root + 4];
+        if rng.chance(0.45) {
+            degrees.push(root + 6);
+        }
+        for degree in degrees {
+            out.push(NoteEvent {
+                step: bar * STEPS_PER_BAR,
+                len: STEPS_PER_BAR,
+                note: to_u8(fold_into(theme.midi(7 + degree), 50, 82)),
+                vel: if bar == 0 { 0.36 } else { 0.32 },
+                timbre: Timbre::Strings,
+            });
+        }
+    }
+    out
+}
+
+fn gen_choir(theme: &Theme) -> Vec<NoteEvent> {
+    let mut out = Vec::new();
+    for bar in 0..BARS_PER_LOOP {
+        let root = theme.progression[bar as usize];
+        for degree in [root, root + 2, root + 4, root + 6] {
+            out.push(NoteEvent {
+                step: bar * STEPS_PER_BAR,
+                len: STEPS_PER_BAR,
+                note: to_u8(fold_into(theme.midi(14 + degree), 60, 86)),
+                vel: 0.28,
+                timbre: Timbre::Choir,
+            });
+        }
+    }
+    out
 }
 
 fn to_u8(n: i32) -> u8 {
@@ -426,7 +709,7 @@ fn gen_motif(rng: &mut Rng) -> Vec<MotifNote> {
     motif
 }
 
-fn gen_lead(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+fn gen_lead_with_timbre(theme: &Theme, rng: &mut Rng, timbre: Timbre) -> Vec<NoteEvent> {
     let motif = gen_motif(rng);
     let mut out = Vec::new();
 
@@ -459,7 +742,7 @@ fn gen_lead(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
                 len: m.len,
                 note: to_u8(note),
                 vel: 0.6 + (rng.next_f32() - 0.5) * 0.2,
-                timbre: Timbre::Lead,
+                timbre,
             });
         }
     }
@@ -479,7 +762,7 @@ fn mutate(events: &[NoteEvent], layer: Layer, theme: &Theme, rng: &mut Rng) -> V
                     continue;
                 }
             }
-            Layer::Bass | Layer::Arp | Layer::Lead => {
+            Layer::Bass | Layer::Arp | Layer::Lead | Layer::RhythmGuitar => {
                 if !strong {
                     if rng.chance(0.12) {
                         continue;
@@ -490,7 +773,7 @@ fn mutate(events: &[NoteEvent], layer: Layer, theme: &Theme, rng: &mut Rng) -> V
                     }
                 }
             }
-            Layer::Pad => {}
+            Layer::Pad | Layer::Strings | Layer::Choir => {}
         }
         out.push(e);
     }
@@ -531,6 +814,34 @@ mod tests {
         let mut c = composer(5);
         let first = c.next_loop().layers;
         assert!((0..12).any(|_| c.next_loop().layers != first));
+    }
+
+    #[test]
+    fn presets_generate_distinct_layer_families() {
+        let seed = 91;
+        let ambient_theme = Theme::from_seed_for_preset(
+            seed, &ThemeOverrides::default(), MusicPreset::MythicAmbient, MusicPace::Standard,
+        );
+        let metal_theme = Theme::from_seed_for_preset(
+            seed, &ThemeOverrides::default(), MusicPreset::HeavyMetal, MusicPace::Standard,
+        );
+        let legendary_theme = Theme::from_seed_for_preset(
+            seed, &ThemeOverrides::default(), MusicPreset::LegendaryMetal, MusicPace::Standard,
+        );
+
+        let ambient = Composer::with_preset(seed, ambient_theme, MusicPreset::MythicAmbient, MusicPace::Standard).next_loop();
+        let metal = Composer::with_preset(seed, metal_theme, MusicPreset::HeavyMetal, MusicPace::Standard).next_loop();
+        let legendary = Composer::with_preset(seed, legendary_theme, MusicPreset::LegendaryMetal, MusicPace::Standard).next_loop();
+
+        assert!(ambient.layers[Layer::Drums.index()].is_empty());
+        assert!(!ambient.layers[Layer::Strings.index()].is_empty());
+        assert!(!ambient.layers[Layer::Arp.index()].is_empty());
+        assert!(!metal.layers[Layer::Drums.index()].is_empty());
+        assert!(!metal.layers[Layer::RhythmGuitar.index()].is_empty());
+        assert!(metal.layers[Layer::Choir.index()].is_empty());
+        assert!(!legendary.layers[Layer::Strings.index()].is_empty());
+        assert!(!legendary.layers[Layer::Choir.index()].is_empty());
+        assert!(!legendary.layers[Layer::RhythmGuitar.index()].is_empty());
     }
 
     #[test]
