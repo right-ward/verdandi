@@ -1,12 +1,13 @@
 # verdandi
 
-Seed-driven, layered procedural music for games. Verdandi has three style presets, with every sound synthesized at runtime and no prerecorded audio assets required. The same preset and seed produce the same evolving track.
+Seed-driven, layered procedural music for games. Verdandi has four style presets, with every sound synthesized at runtime and no prerecorded audio assets required. The same preset and seed produce the same evolving track.
 
 Presets change musical composition as well as timbre:
 
 - **Mythic Ambient** — slow, spacious exploration music with bowed-string-like tones, sustained harmony, and bell-like accents.
 - **Heavy Metal** — riff-driven music with synthesized distorted guitars, bass, and metal-oriented drums.
 - **Legendary Metal** — heavy metal combined with orchestral-string and choir-like layers for a grand, sacred atmosphere.
+- **Classical Ambient** — restrained, string-led ambience with a stately, historical-soundtrack character and a gentle ostinato.
 
 Select `MusicPace::Fast` for denser, faster metal arrangements. Mythic Ambient keeps its slower tempo range. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
 
@@ -47,6 +48,7 @@ The `render_wav` example generates a standalone stereo, 16-bit PCM WAV file. It 
 
 ```sh
 cargo run --release --no-default-features --example render_wav -- 1234 mythic-ambient 8 mythic.wav
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 8 classical.wav
 cargo run --release --no-default-features --example render_wav -- 1234 heavy-metal 8 heavy.wav fast
 cargo run --release --no-default-features --example render_wav -- 1234 legendary-metal 12 legendary.wav
 ```
@@ -87,7 +89,7 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 |---|---|
 | `rng.rs` | SplitMix64 + `derive_seed(master, tag, index)` so each layer/loop gets an independent, reproducible stream |
 | `theory.rs` | Scales and preset-aware `Theme` (key/mode/tempo/progression from seed) |
-| `preset.rs` | The three musical presets and standard/fast pacing |
+| `preset.rs` | The four musical presets and standard/fast pacing |
 | `composer.rs` | Preset-specific layer generators, motif-based melodies and riffs, mutation, repeat/mutate/regenerate policy per layer |
 | `synth.rs` | Small polyphonic synth + drums + stereo delay; no allocation on the hot path |
 | `engine.rs` | Sequencer, `MusicConfig`, lock-free `MusicShared` control/status block |
@@ -100,12 +102,13 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - When layers enter: `Layer::threshold`; auto curve: `begin_loop` in `engine.rs`.
 - New preset: add its profile in `preset.rs` and `Theme::from_seed_for_preset`, then provide style-specific generators in `composer.rs`.
 - New layer: add a `Layer` variant (update `COUNT`/`ALL`/`name`/`threshold`/`tag`/`volatility`), write a generator, and handle it in composition and mutation.
-- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models.
+- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The string and guitar timbres intentionally favor a compact, stable synthesis model over acoustic realism.
 
 ## Known limits
 
 - Fixed 4/4, 16 steps per bar, 4-bar loops.
 - Instrument voices are procedural approximations; they do not yet reproduce real acoustic violins, guitars, or choirs.
+- The metal guitar and bowed-string voices are stylized timbres, not physical models; improve them incrementally based on WAV listening tests.
 - Presets are selected through `MusicConfig`; seamless runtime transitions between presets are not implemented.
 - Seed changes wait for the loop boundary (about 4.6-16.6 s across built-in preset tempo ranges).
 - No crossfade or stinger system yet; intensity gating is note-level, so layers enter on the next note.
