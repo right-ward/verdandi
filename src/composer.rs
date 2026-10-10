@@ -81,6 +81,10 @@ impl Layer {
                 Layer::Drums | Layer::Bass | Layer::Lead | Layer::RhythmGuitar
             ),
             MusicPreset::LegendaryMetal => true,
+            MusicPreset::ClassicalAmbient => matches!(
+                self,
+                Layer::Bass | Layer::Pad | Layer::Arp | Layer::Lead | Layer::Strings
+            ),
         }
     }
 
@@ -256,42 +260,51 @@ fn generate_for_preset(
 ) -> Vec<NoteEvent> {
     match layer {
         Layer::Drums => match preset {
-            MusicPreset::MythicAmbient => Vec::new(),
+            MusicPreset::MythicAmbient | MusicPreset::ClassicalAmbient => Vec::new(),
             MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => gen_metal_drums(rng, pace),
         },
         Layer::Bass => match preset {
-            MusicPreset::MythicAmbient => gen_ambient_bass(theme),
+            MusicPreset::MythicAmbient | MusicPreset::ClassicalAmbient => gen_ambient_bass(theme),
             MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
                 gen_metal_bass(theme, rng, pace)
             }
         },
         Layer::Pad => match preset {
-            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_pad(theme, rng),
+            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal | MusicPreset::ClassicalAmbient => {
+                gen_pad(theme, rng)
+            }
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Arp => match preset {
             MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_ambient_arp(theme, rng),
+            MusicPreset::ClassicalAmbient => gen_classical_arp(theme, rng),
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Lead => match preset {
-            MusicPreset::MythicAmbient => gen_lead_with_timbre(theme, rng, Timbre::Strings),
+            MusicPreset::MythicAmbient | MusicPreset::ClassicalAmbient => {
+                gen_lead_with_timbre(theme, rng, Timbre::Strings)
+            }
             MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
                 gen_lead_with_timbre(theme, rng, Timbre::Guitar)
             }
         },
         Layer::RhythmGuitar => match preset {
-            MusicPreset::MythicAmbient => Vec::new(),
+            MusicPreset::MythicAmbient | MusicPreset::ClassicalAmbient => Vec::new(),
             MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
                 gen_rhythm_guitar(theme, rng, pace)
             }
         },
         Layer::Strings => match preset {
-            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal => gen_strings(theme, rng),
+            MusicPreset::MythicAmbient | MusicPreset::LegendaryMetal | MusicPreset::ClassicalAmbient => {
+                gen_strings(theme, rng)
+            }
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Choir => match preset {
             MusicPreset::LegendaryMetal => gen_choir(theme),
-            MusicPreset::MythicAmbient | MusicPreset::HeavyMetal => Vec::new(),
+            MusicPreset::MythicAmbient | MusicPreset::HeavyMetal | MusicPreset::ClassicalAmbient => {
+                Vec::new()
+            }
         },
     }
 }
@@ -440,6 +453,30 @@ fn gen_rhythm_guitar(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteE
                     timbre: Timbre::Guitar,
                 });
             }
+        }
+    }
+    out
+}
+
+/// A restrained, string-led ostinato for the more classical ambient preset.
+fn gen_classical_arp(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+    const PATTERNS: &[[i32; 4]] = &[[0, 2, 4, 2], [0, 4, 2, 4], [4, 2, 0, 2]];
+    let pattern = *rng.pick(PATTERNS);
+    let mut out = Vec::new();
+
+    for bar in 0..BARS_PER_LOOP {
+        let root = theme.progression[bar as usize];
+        for (i, step) in [0u32, 4, 8, 12].into_iter().enumerate() {
+            if i > 0 && rng.chance(0.12) {
+                continue;
+            }
+            out.push(NoteEvent {
+                step: bar * STEPS_PER_BAR + step,
+                len: 3,
+                note: to_u8(fold_into(theme.midi(7 + root + pattern[i]), 52, 76)),
+                vel: if step == 0 { 0.3 } else { 0.22 },
+                timbre: Timbre::Strings,
+            });
         }
     }
     out
@@ -910,6 +947,34 @@ mod tests {
         assert!(!legendary.layers[Layer::Strings.index()].is_empty());
         assert!(!legendary.layers[Layer::Choir.index()].is_empty());
         assert!(!legendary.layers[Layer::RhythmGuitar.index()].is_empty());
+    }
+
+    #[test]
+    fn classical_ambient_uses_string_led_accompaniment_without_drums() {
+        let seed = 93;
+        let theme = Theme::from_seed_for_preset(
+            seed,
+            &ThemeOverrides::default(),
+            MusicPreset::ClassicalAmbient,
+            MusicPace::Standard,
+        );
+        let plan = Composer::with_preset(
+            seed,
+            theme,
+            MusicPreset::ClassicalAmbient,
+            MusicPace::Standard,
+        )
+        .next_loop();
+
+        assert!(plan.layers[Layer::Drums.index()].is_empty());
+        assert!(plan.layers[Layer::RhythmGuitar.index()].is_empty());
+        assert!(plan.layers[Layer::Choir.index()].is_empty());
+        for layer in [Layer::Bass, Layer::Pad, Layer::Arp, Layer::Lead, Layer::Strings] {
+            assert!(!plan.layers[layer.index()].is_empty(), "{layer:?} should be used");
+        }
+        assert!(plan.layers[Layer::Arp.index()]
+            .iter()
+            .all(|event| event.timbre == Timbre::Strings));
     }
 
     #[test]
