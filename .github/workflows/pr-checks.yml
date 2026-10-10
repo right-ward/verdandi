@@ -173,7 +173,18 @@ jobs:
 
       - name: Build demo
         shell: bash
-        run: cargo build --locked --release --no-default-features --features demo --example demo
+        run: cargo build --release --no-default-features --features demo --example demo
+
+      - name: Upload generated Cargo.lock
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: generated-cargo-lock
+          path: Cargo.lock
+          if-no-files-found: error
+          retention-days: 1
+          archive: false
+          overwrite: true
 
       - name: Package demo binary
         shell: bash
