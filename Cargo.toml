@@ -6,7 +6,7 @@ license = "Apache-2.0"
 authors = ["right-ward"]
 repository = "https://github.com/right-ward/verdandi"
 description = "Seeded, layered procedural music for games: engine-agnostic core + Bevy plugin"
-publish = false
+publish = true
 
 [features]
 default = ["bevy-plugin"]
