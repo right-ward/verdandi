@@ -45,7 +45,7 @@ cargo run --release --no-default-features --features demo --example demo -- 1234
 
 ## Offline WAV renderer
 
-The `render_wav` example generates a standalone stereo, 16-bit PCM WAV file. It uses the engine directly, with no Bevy window, audio device, or extra dependencies, so it can also run in Termux. The requested loop count is rendered to the file; each loop is four bars.
+The `render_wav` example generates a standalone stereo, 16-bit PCM WAV file. It uses the engine directly, with no Bevy window, audio device, or extra dependencies, so it can also run in Termux. The requested loop count is rendered to the file; each loop is four bars. To diagnose a preset's sound, append a layer name (`drums`, `bass`, `pad`, `arp`, `lead`, `rhythm-guitar`, `strings`, or `choir`) after the optional pace. Isolated renders disable automatic intensity and hold intensity at 1.0, so the chosen layer stays audible throughout.
 
 ```sh
 cargo run --release --no-default-features --example render_wav -- 1234 mythic-ambient 8 mythic.wav
@@ -54,7 +54,16 @@ cargo run --release --no-default-features --example render_wav -- 1234 heavy-met
 cargo run --release --no-default-features --example render_wav -- 1234 legendary-metal 12 legendary.wav
 ```
 
-Arguments are `seed preset loops output.wav [standard|fast]`. Presets also accept the short names `ambient`, `metal`, and `legendary`. WAV output is 44.1 kHz; transfer the generated file to Android or open it in any WAV-capable player.
+Arguments are `seed preset loops output.wav [standard|fast] [layer]`. The layer argument requires the pace argument to come first. A layer not used by the selected preset is rejected. Presets also accept the short names `ambient`, `metal`, and `legendary`. WAV output is 44.1 kHz; transfer the generated file to Android or open it in any WAV-capable player.
+
+For example, render the Classical Ambient pad, strings, lead, and arpeggio separately with the same seed:
+
+```sh
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-pad.wav standard pad
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-strings.wav standard strings
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-lead.wav standard lead
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-arp.wav standard arp
+```
 
 ## Use it in your game
 
