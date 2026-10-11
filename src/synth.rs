@@ -511,9 +511,13 @@ mod tests {
         let higher = render_voice_at_velocity(Timbre::Pluck, 72, 0.95, 8_000);
         assert_ne!(soft, strong);
         assert_ne!(strong, higher);
-        assert!(soft.iter().chain(&strong).chain(&higher).all(|(left, right)| {
-            left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
-        }));
+        assert!(soft
+            .iter()
+            .chain(&strong)
+            .chain(&higher)
+            .all(|(left, right)| {
+                left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
+            }));
     }
 
     #[test]
