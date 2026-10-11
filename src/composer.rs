@@ -818,7 +818,7 @@ fn gen_classical_lead(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
             }
             3 => {
                 // Shorten the final bar and resolve the last note onto the chord root.
-                let keep = (notes.len() + 1) / 2;
+                let keep = notes.len().div_ceil(2);
                 notes.truncate(keep);
                 if let Some(last) = notes.last_mut() {
                     last.rel = 0;
@@ -1069,8 +1069,10 @@ mod tests {
                     .collect()
             })
             .collect();
-        assert!(lead_by_bar[0] != lead_by_bar[1] || lead_by_bar[1] != lead_by_bar[2],
-            "the Classical Ambient lead should develop across bars");
+        assert!(
+            lead_by_bar[0] != lead_by_bar[1] || lead_by_bar[1] != lead_by_bar[2],
+            "the Classical Ambient lead should develop across bars"
+        );
         assert!(plan.layers[Layer::Strings.index()]
             .iter()
             .all(|event| event.timbre == Timbre::ClassicalStrings));
