@@ -45,7 +45,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     let preset = match args[1].as_str() {
         "ethereal" | "mythic-ambient" | "ambient" => MusicPreset::MythicAmbient,
         "contemplative" | "classical-ambient" | "classical" => MusicPreset::ClassicalAmbient,
-        "heavy-metal" | "metal" => MusicPreset::HeavyMetal,
+        "warbound" | "heavy-metal" | "metal" => MusicPreset::HeavyMetal,
         "legendary-metal" | "legendary" => MusicPreset::LegendaryMetal,
         other => {
             return Err(format!(
