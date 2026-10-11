@@ -89,7 +89,7 @@ fn on_boss_fight(music: Res<MusicController>) {
 }
 ```
 
-Per-run seeds: `music.set_seed(run_seed)`. Volume/pause: query `AudioSink` with `MusicTrack`. Pin parts of the frame with `MusicConfig::theme` (`ThemeOverrides { bpm, scale, tonic_pitch_class, progression }`). Spawn only one player per `ProceduralMusicPlugin`.
+Per-run seeds: `music.set_seed(run_seed)`. Change styles at runtime with `music.set_preset(MusicPreset::HeavyMetal, MusicPace::Fast)`, which waits for the next bar and crossfades over two seconds. `music.set_preset_immediate(...)` starts that crossfade as soon as the audio callback processes the request. `MusicController::status()` reports the active preset after the transition. Volume/pause: query `AudioSink` with `MusicTrack`. Pin parts of the frame with `MusicConfig::theme` (`ThemeOverrides { bpm, scale, tonic_pitch_class, progression }`). Spawn only one player per `ProceduralMusicPlugin`.
 
 Not using Bevy? Depend on it with `default-features = false` and call `Engine::render_interleaved` from your own audio callback.
 
@@ -119,6 +119,6 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - Fixed 4/4, 16 steps per bar, 4-bar loops.
 - Instrument voices are procedural approximations; they do not yet reproduce real acoustic violins, guitars, or choirs.
 - The metal guitar and bowed-string voices are stylized timbres, not physical models; improve them incrementally based on WAV listening tests.
-- Presets are selected through `MusicConfig`; seamless runtime transitions between presets are not implemented.
+- Runtime preset changes crossfade over two seconds; the default waits for the next bar, while the immediate variant starts as soon as the audio callback processes the request. Musical stingers are not implemented.
 - Seed changes wait for the loop boundary (about 4.6-16.6 s across built-in preset tempo ranges).
-- No crossfade or stinger system yet; intensity gating is note-level, so layers enter on the next note.
+- Intensity gating is note-level, so layers enter on the next note.
