@@ -4,14 +4,14 @@ Seed-driven, layered procedural music for games. Verdandi has four style presets
 
 Presets change musical composition as well as timbre:
 
-- **Mythic Ambient** — slow, spacious exploration music with bowed-string-like tones, sustained harmony, and bell-like accents.
-- **Heavy Metal** — riff-driven music with synthesized distorted guitars, bass, and metal-oriented drums.
-- **Legendary Metal** — heavy metal combined with orchestral-string and choir-like layers for a grand, sacred atmosphere.
-- **Classical Ambient** — restrained, string-led ambience with a stately, historical-soundtrack character, a warm sustained pad, softer bowed-string-like harmony, a darker melodic lead, and a gentle ostinato.
+- **Ethereal** — slow, spacious exploration music with bowed-string-like tones, sustained harmony, and bell-like accents.
+- **Warbound** — riff-driven music with synthesized distorted guitars, bass, and metal-oriented drums.
+- **Orchestral** — heavy metal combined with orchestral-string and choir-like layers for a grand, sacred atmosphere.
+- **Contemplative** — restrained, string-led ambience with a stately, historical-soundtrack character, a warm sustained pad, softer bowed-string-like harmony, a darker melodic lead, and a gentle ostinato.
 
-Select `MusicPace::Fast` for denser, faster metal arrangements. Both ambient presets keep their slower tempo ranges. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
+Select `MusicPace::Fast` for denser, faster metal arrangements. Ethereal and Contemplative keep their slower tempo ranges. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
 
-The same seed, preset, pace, and overrides reproduce the same musical patterns. Layer patterns can repeat, mutate, or regenerate at four-bar loop boundaries, while intensity controls when layers become audible. Classical Ambient develops its lead and string ostinato across each four-bar phrase, with a clearer cadence at the end.
+The same seed, preset, pace, and overrides reproduce the same musical patterns. Layer patterns can repeat, mutate, or regenerate at four-bar loop boundaries, while intensity controls when layers become audible. Contemplative develops its lead and string ostinato across each four-bar phrase, with a clearer cadence at the end.
 
 Targets **Bevy 0.20**.
 
@@ -37,10 +37,10 @@ Keys: `Left/Right` seed -/+, `N` random seed, `1-8` toggle layers, `Up/Down` int
 Choose a preset and pace with the optional arguments (seed, preset, pace):
 
 ```sh
-cargo run --release --no-default-features --features demo --example demo -- 1234 mythic-ambient
-cargo run --release --no-default-features --features demo --example demo -- 1234 classical-ambient
-cargo run --release --no-default-features --features demo --example demo -- 1234 heavy-metal fast
-cargo run --release --no-default-features --features demo --example demo -- 1234 legendary-metal
+cargo run --release --no-default-features --features demo --example demo -- 1234 ethereal
+cargo run --release --no-default-features --features demo --example demo -- 1234 contemplative
+cargo run --release --no-default-features --features demo --example demo -- 1234 warbound fast
+cargo run --release --no-default-features --features demo --example demo -- 1234 orchestral
 ```
 
 ## Offline WAV renderer
@@ -54,15 +54,15 @@ cargo run --release --no-default-features --example render_wav -- 1234 heavy-met
 cargo run --release --no-default-features --example render_wav -- 1234 legendary-metal 12 legendary.wav
 ```
 
-Arguments are `seed preset loops output.wav [standard|fast] [layer]`. The layer argument requires the pace argument to come first. A layer not used by the selected preset is rejected. Presets also accept the short names `ambient`, `metal`, and `legendary`. WAV output is 44.1 kHz; transfer the generated file to Android or open it in any WAV-capable player.
+Arguments are `seed preset loops output.wav [standard|fast] [layer]`. The layer argument requires the pace argument to come first. A layer not used by the selected preset is rejected. The new names are `ethereal`, `warbound`, `orchestral`, and `contemplative`. Previous names (`mythic-ambient`, `heavy-metal`, `legendary-metal`, `classical-ambient`) and short aliases remain accepted. WAV output is 44.1 kHz; transfer the generated file to Android or open it in any WAV-capable player.
 
 For example, render the Classical Ambient pad, strings, lead, and arpeggio separately with the same seed:
 
 ```sh
-cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-pad.wav standard pad
-cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-strings.wav standard strings
-cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-lead.wav standard lead
-cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 classical-arp.wav standard arp
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-pad.wav standard pad
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-strings.wav standard strings
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-lead.wav standard lead
+cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-arp.wav standard arp
 ```
 
 ## Use it in your game
@@ -112,7 +112,7 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - When layers enter: `Layer::threshold`; auto curve: `begin_loop` in `engine.rs`.
 - New preset: add its profile in `preset.rs` and `Theme::from_seed_for_preset`, then provide style-specific generators in `composer.rs`.
 - New layer: add a `Layer` variant (update `COUNT`/`ALL`/`name`/`threshold`/`tag`/`volatility`), write a generator, and handle it in composition and mutation.
-- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The string and guitar timbres intentionally favor a compact, stable synthesis model over acoustic realism. Classical Ambient uses separate, softer bowed-string and darker melodic voices so its sustained harmony and lead can be refined without changing the brighter Strings timbre used by the arpeggio or Mythic Ambient.
+- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The string and guitar timbres intentionally favor a compact, stable synthesis model over acoustic realism. Classical Ambient uses separate, softer bowed-string and darker melodic voices so its sustained harmony and lead can be refined without changing the brighter Strings timbre used by the arpeggio or Ethereal.
 
 ## Known limits
 

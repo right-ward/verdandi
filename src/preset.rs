@@ -4,14 +4,14 @@
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum MusicPreset {
-    /// Spacious, string-led music intended for exploration.
+    /// Spacious, string-led music intended for exploration and discovery.
     #[default]
     MythicAmbient,
-    /// Riff-led, aggressive metal suitable for combat.
+    /// Driving, riff-led music with aggressive guitars and percussion.
     HeavyMetal,
-    /// Heavy metal with orchestral and choir-like layers.
+    /// Driving guitar music expanded with orchestral and choir-like layers.
     LegendaryMetal,
-    /// Calm, classical soundtrack-inspired ambience with restrained string-led motion.
+    /// Restrained, reflective music with gentle string-led motion.
     ClassicalAmbient,
 }
 
@@ -26,10 +26,10 @@ impl MusicPreset {
 
     pub const fn name(self) -> &'static str {
         match self {
-            Self::MythicAmbient => "Mythic Ambient",
-            Self::HeavyMetal => "Heavy Metal",
-            Self::LegendaryMetal => "Legendary Metal",
-            Self::ClassicalAmbient => "Classical Ambient",
+            Self::MythicAmbient => "Ethereal",
+            Self::HeavyMetal => "Warbound",
+            Self::LegendaryMetal => "Orchestral",
+            Self::ClassicalAmbient => "Contemplative",
         }
     }
 
@@ -52,8 +52,8 @@ impl MusicPreset {
     }
 }
 
-/// Arrangement pacing. Fast mode is intended for the metal presets; both ambient
-/// presets keep their slower tempo ranges regardless of this setting.
+/// Arrangement pacing. Fast mode is intended for Warbound and Orchestral; Ethereal
+/// and Contemplative keep their slower tempo ranges regardless of this setting.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum MusicPace {
     #[default]
