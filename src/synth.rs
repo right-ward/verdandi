@@ -78,6 +78,10 @@ struct Voice {
     gain_l: f32,
     gain_r: f32,
     lp: f32,
+    bow_noise: f32,
+    pluck_buffer: [f32; 512],
+    pluck_len: usize,
+    pluck_pos: usize,
     noise: u32,
     sr: f32,
 }
@@ -93,12 +97,26 @@ impl Voice {
         noise_seed: u32,
     ) -> Self {
         let gate = (gate_secs.max(0.01) * sr) as u32;
+        let freq = midi_to_hz(note);
+        let mut pluck_buffer = [0.0; 512];
+        let pluck_len = if timbre == Timbre::Pluck {
+            ((sr / freq).round() as usize).clamp(2, pluck_buffer.len())
+        } else {
+            2
+        };
+        let mut pluck_noise = noise_seed | 1;
+        for sample in &mut pluck_buffer[..pluck_len] {
+            pluck_noise ^= pluck_noise << 13;
+            pluck_noise ^= pluck_noise >> 17;
+            pluck_noise ^= pluck_noise << 5;
+            *sample = (pluck_noise as f32 / u32::MAX as f32) * 2.0 - 1.0;
+        }
         let total = match timbre {
             Timbre::Kick => (0.4 * sr) as u32,
             Timbre::Snare => (0.3 * sr) as u32,
             Timbre::Hat => (0.1 * sr) as u32,
             Timbre::OpenHat => (0.5 * sr) as u32,
-            Timbre::Pluck => (0.8 * sr) as u32,
+            Timbre::Pluck => (1.25 * sr) as u32,
             Timbre::Bass => gate + (0.08 * sr) as u32,
             Timbre::Pad => gate + (0.9 * sr) as u32,
             Timbre::Lead => gate + (0.18 * sr) as u32,
@@ -111,7 +129,7 @@ impl Voice {
         let angle = (pan.clamp(-1.0, 1.0) + 1.0) * FRAC_PI_4;
         Self {
             timbre,
-            freq: midi_to_hz(note),
+            freq,
             phase: 0.0,
             phase2: 0.37,
             t: 0,
@@ -121,6 +139,10 @@ impl Voice {
             gain_l: angle.cos() * SQRT_2,
             gain_r: angle.sin() * SQRT_2,
             lp: 0.0,
+            bow_noise: 0.0,
+            pluck_buffer,
+            pluck_len,
+            pluck_pos: 0,
             noise: noise_seed | 1,
             sr,
         }
@@ -217,12 +239,15 @@ impl Voice {
                 self.lp * self.adsr(0.7, 0.5, 0.82, 1.0)
             }
             Timbre::Pluck => {
-                self.phase = (self.phase + self.freq * dt).fract();
-                let pulse = if self.phase < 0.3 { 1.0 } else { -1.0 };
-                let cutoff = 600.0 + 4500.0 * (-ts * 14.0).exp();
-                let a = 1.0 - (-TAU * cutoff * dt).exp();
-                self.lp += a * (pulse - self.lp);
-                self.lp * (-ts * 6.5).exp()
+                // Karplus–Strong string: a seeded noise burst circulates around a short delay
+                // line, while averaging adjacent samples damps the upper partials naturally.
+                let next = (self.pluck_pos + 1) % self.pluck_len;
+                let string = 0.5
+                    * (self.pluck_buffer[self.pluck_pos] + self.pluck_buffer[next]);
+                self.pluck_buffer[self.pluck_pos] = string * 0.996;
+                self.pluck_pos = next;
+                let pick = self.next_noise() * (-ts * 520.0).exp() * 0.035;
+                (string + pick) * (-ts * 0.12).exp()
             }
             Timbre::Lead => {
                 let vib = 1.0 + 0.004 * (TAU * 5.5 * ts).sin() * (ts * 4.0).min(1.0);
@@ -261,19 +286,26 @@ impl Voice {
                 (self.lp * 5.0).tanh() * self.adsr(0.003, 0.07, 0.72, 0.08)
             }
             Timbre::Strings => {
-                let vib = 1.0 + 0.0035 * (TAU * 5.2 * ts).sin() * (ts * 3.0).min(1.0);
+                // Bowed-string character comes from a soft bow onset, gently blooming vibrato,
+                // a changing harmonic balance, and a little deterministic bow-friction noise.
+                let vibrato_depth = 0.001 + 0.0025 * (ts * 3.0).min(1.0);
+                let vib = 1.0 + vibrato_depth * (TAU * 5.2 * ts).sin();
                 self.phase = (self.phase + self.freq * vib * dt).fract();
-                // Keep only a very slight second oscillator blend: strong detuning made
-                // sustained chords sound wobbly and more like brass than bowed strings.
                 self.phase2 = (self.phase2 + self.freq * 1.0015 * dt).fract();
                 let fundamental = (self.phase * TAU).sin();
                 let upper = (self.phase * TAU * 2.0).sin();
                 let body = 2.0 * self.phase - 1.0;
                 let companion = 2.0 * self.phase2 - 1.0;
-                let bowed = fundamental * 0.58 + body * 0.2 + upper * 0.14 + companion * 0.08;
-                let a = 1.0 - (-TAU * 1450.0 * dt).exp();
+                let brightness = (-ts * 1.8).exp();
+                let bowed = fundamental * 0.64
+                    + body * (0.12 + 0.08 * brightness)
+                    + upper * (0.10 + 0.04 * brightness)
+                    + companion * 0.08;
+                let a = 1.0 - (-TAU * (1250.0 + 300.0 * brightness) * dt).exp();
                 self.lp += a * (bowed - self.lp);
-                self.lp * self.adsr(0.16, 0.28, 0.82, 0.82)
+                let envelope = self.adsr(0.2, 0.3, 0.82, 0.82);
+                self.bow_noise += 0.12 * (self.next_noise() - self.bow_noise);
+                self.lp * envelope + self.bow_noise * envelope * 0.018
             }
             Timbre::ClassicalStrings => {
                 // Softer bowed-string approximation reserved for Classical Ambient. Keep the
