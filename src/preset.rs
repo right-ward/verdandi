@@ -70,10 +70,16 @@ impl MusicPace {
     }
 
     pub(crate) const fn index(self) -> usize {
-        match self { Self::Standard => 0, Self::Fast => 1 }
+        match self {
+            Self::Standard => 0,
+            Self::Fast => 1,
+        }
     }
 
     pub(crate) const fn from_index(index: usize) -> Self {
-        match index { 1 => Self::Fast, _ => Self::Standard }
+        match index {
+            1 => Self::Fast,
+            _ => Self::Standard,
+        }
     }
 }

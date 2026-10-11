@@ -154,20 +154,24 @@ impl MusicShared {
 
     /// Queue a preset change for the next bar, then crossfade over two seconds.
     pub fn request_preset(&self, preset: MusicPreset, pace: MusicPace) {
-        self.preset_request.store(encode_preset(preset, pace, false), Relaxed);
+        self.preset_request
+            .store(encode_preset(preset, pace, false), Relaxed);
         self.preset_pending.store(true, Release);
     }
 
     /// Start a preset crossfade as soon as the audio callback processes this request.
     pub fn request_preset_immediate(&self, preset: MusicPreset, pace: MusicPace) {
-        self.preset_request.store(encode_preset(preset, pace, true), Relaxed);
+        self.preset_request
+            .store(encode_preset(preset, pace, true), Relaxed);
         self.preset_pending.store(true, Release);
     }
 
     fn take_preset_request(&self) -> Option<(MusicPreset, MusicPace, bool)> {
         if self.preset_pending.swap(false, Acquire) {
             Some(decode_preset(self.preset_request.load(Relaxed)))
-        } else { None }
+        } else {
+            None
+        }
     }
 
     fn publish_preset(&self, preset: MusicPreset, pace: MusicPace) {
@@ -249,7 +253,11 @@ fn encode_preset(preset: MusicPreset, pace: MusicPace, immediate: bool) -> u32 {
 }
 
 fn decode_preset(bits: u32) -> (MusicPreset, MusicPace, bool) {
-    (MusicPreset::from_index((bits & 0b11) as usize), MusicPace::from_index(((bits >> 2) & 1) as usize), bits & (1 << 3) != 0)
+    (
+        MusicPreset::from_index((bits & 0b11) as usize),
+        MusicPace::from_index(((bits >> 2) & 1) as usize),
+        bits & (1 << 3) != 0,
+    )
 }
 
 fn step_len_samples(bpm: f32, sample_rate: u32) -> f64 {
@@ -281,8 +289,17 @@ impl Engine {
         Self::new_inner(shared, cfg, true, true)
     }
 
-    fn new_inner(shared: Arc<MusicShared>, cfg: &MusicConfig, publish_status: bool, consume_seed: bool) -> Self {
-        let seed = if consume_seed { shared.take_seed_request().unwrap_or(cfg.seed) } else { cfg.seed };
+    fn new_inner(
+        shared: Arc<MusicShared>,
+        cfg: &MusicConfig,
+        publish_status: bool,
+        consume_seed: bool,
+    ) -> Self {
+        let seed = if consume_seed {
+            shared.take_seed_request().unwrap_or(cfg.seed)
+        } else {
+            cfg.seed
+        };
         let theme = Theme::from_seed_for_preset(seed, &cfg.theme, cfg.preset, cfg.pace);
         let step_len = step_len_samples(theme.bpm, cfg.sample_rate);
         let synth = Synth::new(cfg.sample_rate, theme.bpm);
@@ -305,7 +322,9 @@ impl Engine {
             transition_elapsed: 0,
             transition_frames: (f64::from(cfg.sample_rate) * 2.0).max(1.0) as u64,
         };
-        if publish_status { engine.publish_theme(); }
+        if publish_status {
+            engine.publish_theme();
+        }
         engine
     }
 
@@ -372,7 +391,9 @@ impl Engine {
         if self.step == 0 {
             self.begin_loop();
         }
-        if self.publish_status { self.shared.step.store(self.step, Relaxed); }
+        if self.publish_status {
+            self.shared.step.store(self.step, Relaxed);
+        }
         self.trigger_step();
         self.step += 1;
         if self.step >= STEPS_PER_LOOP {
@@ -382,12 +403,24 @@ impl Engine {
 
     fn begin_transition(&mut self, preset: MusicPreset, pace: MusicPace) {
         let cfg = MusicConfig {
-            seed: self.composer.seed(), preset, pace, sample_rate: self.sample_rate,
-            theme: self.overrides.clone(), auto_intensity: self.shared.auto_intensity(),
-            auto_intensity_period_loops: self.period_loops, intensity: self.shared.intensity(),
-            layers_enabled: std::array::from_fn(|i| self.shared.layer_mask.load(Relaxed) & (1 << i) != 0),
+            seed: self.composer.seed(),
+            preset,
+            pace,
+            sample_rate: self.sample_rate,
+            theme: self.overrides.clone(),
+            auto_intensity: self.shared.auto_intensity(),
+            auto_intensity_period_loops: self.period_loops,
+            intensity: self.shared.intensity(),
+            layers_enabled: std::array::from_fn(|i| {
+                self.shared.layer_mask.load(Relaxed) & (1 << i) != 0
+            }),
         };
-        self.transition = Some(Box::new(Self::new_inner(self.shared.clone(), &cfg, false, false)));
+        self.transition = Some(Box::new(Self::new_inner(
+            self.shared.clone(),
+            &cfg,
+            false,
+            false,
+        )));
         self.transition_elapsed = 0;
         self.transition_frames = (f64::from(self.sample_rate) * 2.0).max(1.0) as u64;
     }
@@ -408,23 +441,39 @@ impl Engine {
 
     pub fn render_frame(&mut self) -> (f32, f32) {
         if self.publish_status {
-            if let Some(request) = self.shared.take_preset_request() { self.pending_preset = Some(request); }
+            if let Some(request) = self.shared.take_preset_request() {
+                self.pending_preset = Some(request);
+            }
             if self.transition.is_none() {
-                let ready = self.pending_preset.map(|(_, _, immediate)| immediate || (self.countdown <= 0.0 && self.step % STEPS_PER_BAR == 0)).unwrap_or(false);
+                let ready = self
+                    .pending_preset
+                    .map(|(_, _, immediate)| {
+                        immediate || (self.countdown <= 0.0 && self.step % STEPS_PER_BAR == 0)
+                    })
+                    .unwrap_or(false);
                 if ready {
                     if let Some((preset, pace, _)) = self.pending_preset.take() {
-                        if preset != self.preset || pace != self.pace { self.begin_transition(preset, pace); }
+                        if preset != self.preset || pace != self.pace {
+                            self.begin_transition(preset, pace);
+                        }
                     }
                 }
             }
         }
-        if self.countdown <= 0.0 { self.on_step(); self.countdown += self.step_len; }
+        if self.countdown <= 0.0 {
+            self.on_step();
+            self.countdown += self.step_len;
+        }
         self.countdown -= 1.0;
         let outgoing = self.synth.render_frame();
         if let Some(incoming) = self.transition.as_mut() {
             let target = incoming.render_frame();
-            let t = (self.transition_elapsed as f32 / self.transition_frames as f32).clamp(0.0, 1.0);
-            let mixed = (outgoing.0 * (1.0 - t) + target.0 * t, outgoing.1 * (1.0 - t) + target.1 * t);
+            let t =
+                (self.transition_elapsed as f32 / self.transition_frames as f32).clamp(0.0, 1.0);
+            let mixed = (
+                outgoing.0 * (1.0 - t) + target.0 * t,
+                outgoing.1 * (1.0 - t) + target.1 * t,
+            );
             self.transition_elapsed += 1;
             if self.transition_elapsed >= self.transition_frames {
                 let mut incoming = *self.transition.take().expect("transition exists");
@@ -433,7 +482,9 @@ impl Engine {
                 self.publish_theme();
             }
             mixed
-        } else { outgoing }
+        } else {
+            outgoing
+        }
     }
 
     /// Fill `out` with interleaved stereo (L, R, L, R, ...) samples.
