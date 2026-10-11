@@ -82,6 +82,8 @@ struct Voice {
     pluck_buffer: [f32; 512],
     pluck_len: usize,
     pluck_pos: usize,
+    pluck_damping: f32,
+    pick_strength: f32,
     noise: u32,
     sr: f32,
 }
@@ -105,12 +107,20 @@ impl Voice {
             2
         };
         let mut pluck_noise = noise_seed | 1;
-        for sample in &mut pluck_buffer[..pluck_len] {
+        // The pluck point changes the harmonic balance: plucking nearer the bridge keeps
+        // more upper partials, while a point nearer the center suppresses them.
+        let pick_position = 0.12 + ((noise_seed >> 8) as f32 / u32::MAX as f32) * 0.3;
+        for (index, sample) in pluck_buffer[..pluck_len].iter_mut().enumerate() {
             pluck_noise ^= pluck_noise << 13;
             pluck_noise ^= pluck_noise >> 17;
             pluck_noise ^= pluck_noise << 5;
-            *sample = (pluck_noise as f32 / u32::MAX as f32) * 2.0 - 1.0;
+            let position = index as f32 / pluck_len as f32;
+            let shape = (std::f32::consts::PI * position / pick_position).sin()
+                * (std::f32::consts::PI * (1.0 - position) / (1.0 - pick_position)).sin();
+            *sample = ((pluck_noise as f32 / u32::MAX as f32) * 2.0 - 1.0) * shape;
         }
+        let pluck_damping = 0.991 + 0.006 * vel.clamp(0.0, 1.0);
+        let pick_strength = 0.015 + 0.05 * vel.clamp(0.0, 1.0);
         let total = match timbre {
             Timbre::Kick => (0.4 * sr) as u32,
             Timbre::Snare => (0.3 * sr) as u32,
@@ -143,6 +153,8 @@ impl Voice {
             pluck_buffer,
             pluck_len,
             pluck_pos: 0,
+            pluck_damping,
+            pick_strength,
             noise: noise_seed | 1,
             sr,
         }
@@ -243,10 +255,12 @@ impl Voice {
                 // line, while averaging adjacent samples damps the upper partials naturally.
                 let next = (self.pluck_pos + 1) % self.pluck_len;
                 let string = 0.5 * (self.pluck_buffer[self.pluck_pos] + self.pluck_buffer[next]);
-                self.pluck_buffer[self.pluck_pos] = string * 0.996;
+                self.pluck_buffer[self.pluck_pos] = string * self.pluck_damping;
                 self.pluck_pos = next;
-                let pick = self.next_noise() * (-ts * 520.0).exp() * 0.035;
-                (string + pick) * (-ts * 0.12).exp()
+                let pick = self.next_noise() * (-ts * 420.0).exp() * self.pick_strength;
+                // Low notes sustain longer; high notes lose energy more quickly.
+                let decay = 0.7 + (self.freq / 440.0).clamp(0.0, 2.0) * 0.25;
+                (string + pick) * (-ts * decay).exp()
             }
             Timbre::Lead => {
                 let vib = 1.0 + 0.004 * (TAU * 5.5 * ts).sin() * (ts * 4.0).min(1.0);
