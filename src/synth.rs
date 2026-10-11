@@ -458,3 +458,37 @@ impl Synth {
         ((l * self.master).tanh(), (r * self.master).tanh())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn render_voice(timbre: Timbre, note: u8, frames: usize) -> Vec<(f32, f32)> {
+        let mut synth = Synth::new(44_100, 120.0);
+        synth.note_on(timbre, note, 0.8, 0.6);
+        (0..frames).map(|_| synth.render_frame()).collect()
+    }
+
+    #[test]
+    fn plucked_string_is_deterministic_and_bounded() {
+        let first = render_voice(Timbre::Pluck, 64, 44_100);
+        let second = render_voice(Timbre::Pluck, 64, 44_100);
+        assert_eq!(first, second);
+        assert!(first.iter().any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
+        assert!(first.iter().all(|(left, right)| {
+            left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
+        }));
+    }
+
+    #[test]
+    fn bowed_strings_are_deterministic_and_bounded() {
+        let first = render_voice(Timbre::Strings, 69, 44_100);
+        let second = render_voice(Timbre::Strings, 69, 44_100);
+        assert_eq!(first, second);
+        assert!(first.iter().any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
+        assert!(first.iter().all(|(left, right)| {
+            left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
+        }));
+    }
+}
