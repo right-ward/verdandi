@@ -7,7 +7,7 @@ Presets change musical composition as well as timbre:
 - **Mythic Ambient** — slow, spacious exploration music with bowed-string-like tones, sustained harmony, and bell-like accents.
 - **Heavy Metal** — riff-driven music with synthesized distorted guitars, bass, and metal-oriented drums.
 - **Legendary Metal** — heavy metal combined with orchestral-string and choir-like layers for a grand, sacred atmosphere.
-- **Classical Ambient** — restrained, string-led ambience with a stately, historical-soundtrack character and a gentle ostinato.
+- **Classical Ambient** — restrained, string-led ambience with a stately, historical-soundtrack character, a warm sustained pad, softer bowed-string-like harmony, and a gentle ostinato.
 
 Select `MusicPace::Fast` for denser, faster metal arrangements. Both ambient presets keep their slower tempo ranges. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
 
@@ -112,7 +112,7 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - When layers enter: `Layer::threshold`; auto curve: `begin_loop` in `engine.rs`.
 - New preset: add its profile in `preset.rs` and `Theme::from_seed_for_preset`, then provide style-specific generators in `composer.rs`.
 - New layer: add a `Layer` variant (update `COUNT`/`ALL`/`name`/`threshold`/`tag`/`volatility`), write a generator, and handle it in composition and mutation.
-- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The string and guitar timbres intentionally favor a compact, stable synthesis model over acoustic realism.
+- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The string and guitar timbres intentionally favor a compact, stable synthesis model over acoustic realism. Classical Ambient uses a separate, softer bowed-string approximation so its sustained harmony can evolve without changing the brighter Strings timbre used by the arpeggio.
 
 ## Known limits
 
