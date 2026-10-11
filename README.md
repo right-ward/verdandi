@@ -89,7 +89,7 @@ fn on_boss_fight(music: Res<MusicController>) {
 }
 ```
 
-Per-run seeds: `music.set_seed(run_seed)`. Change styles at runtime with `music.set_preset(MusicPreset::HeavyMetal, MusicPace::Fast)`, which waits for the next bar and crossfades over two seconds. `music.set_preset_immediate(...)` starts that crossfade as soon as the audio callback processes the request. `MusicController::status()` reports the active preset after the transition. Volume/pause: query `AudioSink` with `MusicTrack`. Pin parts of the frame with `MusicConfig::theme` (`ThemeOverrides { bpm, scale, tonic_pitch_class, progression }`). Spawn only one player per `ProceduralMusicPlugin`.
+Per-run seeds: `music.set_seed(run_seed)`. Change styles at runtime with `music.set_preset(MusicPreset::HeavyMetal, MusicPace::Fast)`, which waits for the next bar and crossfades over two seconds. `music.set_preset_immediate(...)` starts that crossfade as soon as the audio callback processes the request. `MusicController::status()` reports the active preset after the transition. Trigger synthesized event cues with `music.play_stinger(MusicStinger::CombatStart)`, `Victory`, `BossReveal`, or `Transition`; cues follow the current scale and tempo and play over the continuing track. A new cue replaces an in-progress cue. Volume/pause: query `AudioSink` with `MusicTrack`. Pin parts of the frame with `MusicConfig::theme` (`ThemeOverrides { bpm, scale, tonic_pitch_class, progression }`). Spawn only one player per `ProceduralMusicPlugin`.
 
 Not using Bevy? Depend on it with `default-features = false` and call `Engine::render_interleaved` from your own audio callback.
 
@@ -119,6 +119,6 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - Fixed 4/4, 16 steps per bar, 4-bar loops.
 - Instrument voices are procedural approximations; they do not yet reproduce real acoustic violins, guitars, or choirs.
 - The metal guitar and bowed-string voices are stylized timbres, not physical models. The Pluck voice uses a simple physical-inspired string model with velocity- and pitch-dependent articulation, but still needs WAV listening tests and further tuning.
-- Runtime preset changes crossfade over two seconds; the default waits for the next bar, while the immediate variant starts as soon as the audio callback processes the request. Musical stingers are not implemented.
+- Runtime preset changes crossfade over two seconds; the default waits for the next bar, while the immediate variant starts as soon as the audio callback processes the request. Built-in event stingers are synthesized at runtime and replace one another if retriggered.
 - Seed changes wait for the loop boundary (about 4.6-16.6 s across built-in preset tempo ranges).
 - Intensity gating is note-level, so layers enter on the next note.
