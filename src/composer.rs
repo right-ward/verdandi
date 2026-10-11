@@ -297,7 +297,9 @@ fn generate_for_preset(
         Layer::Strings => match preset {
             MusicPreset::MythicAmbient
             | MusicPreset::LegendaryMetal
-            | MusicPreset::ClassicalAmbient => gen_strings(theme, rng),
+            | MusicPreset::ClassicalAmbient => {
+                gen_strings(theme, rng, preset == MusicPreset::ClassicalAmbient)
+            },
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Choir => match preset {
@@ -503,7 +505,7 @@ fn gen_ambient_arp(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
     out
 }
 
-fn gen_strings(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+fn gen_strings(theme: &Theme, rng: &mut Rng, classical: bool) -> Vec<NoteEvent> {
     let mut out = Vec::new();
     for bar in 0..BARS_PER_LOOP {
         let root = theme.progression[bar as usize];
@@ -517,7 +519,11 @@ fn gen_strings(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
                 len: STEPS_PER_BAR,
                 note: to_u8(fold_into(theme.midi(7 + degree), 50, 82)),
                 vel: if bar == 0 { 0.36 } else { 0.32 },
-                timbre: Timbre::Strings,
+                timbre: if classical {
+                    Timbre::ClassicalStrings
+                } else {
+                    Timbre::Strings
+                },
             });
         }
     }
