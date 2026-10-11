@@ -41,6 +41,15 @@ impl MusicPreset {
             Self::ClassicalAmbient => 3,
         }
     }
+
+    pub(crate) const fn from_index(index: usize) -> Self {
+        match index {
+            1 => Self::HeavyMetal,
+            2 => Self::LegendaryMetal,
+            3 => Self::ClassicalAmbient,
+            _ => Self::MythicAmbient,
+        }
+    }
 }
 
 /// Arrangement pacing. Fast mode is intended for the metal presets; both ambient
@@ -58,5 +67,13 @@ impl MusicPace {
             Self::Standard => "standard",
             Self::Fast => "fast",
         }
+    }
+
+    pub(crate) const fn index(self) -> usize {
+        match self { Self::Standard => 0, Self::Fast => 1 }
+    }
+
+    pub(crate) const fn from_index(index: usize) -> Self {
+        match index { 1 => Self::Fast, _ => Self::Standard }
     }
 }
