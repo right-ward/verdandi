@@ -281,8 +281,9 @@ fn generate_for_preset(
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Lead => match preset {
-            MusicPreset::MythicAmbient | MusicPreset::ClassicalAmbient => {
-                gen_lead_with_timbre(theme, rng, Timbre::Strings)
+            MusicPreset::MythicAmbient => gen_lead_with_timbre(theme, rng, Timbre::Strings),
+            MusicPreset::ClassicalAmbient => {
+                gen_lead_with_timbre(theme, rng, Timbre::ClassicalLead)
             }
             MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
                 gen_lead_with_timbre(theme, rng, Timbre::Guitar)
@@ -947,6 +948,10 @@ mod tests {
         assert!(ambient.layers[Layer::Drums.index()].is_empty());
         assert!(!ambient.layers[Layer::Strings.index()].is_empty());
         assert!(!ambient.layers[Layer::Arp.index()].is_empty());
+        assert!(!ambient.layers[Layer::Lead.index()].is_empty());
+        assert!(ambient.layers[Layer::Lead.index()]
+            .iter()
+            .all(|event| event.timbre == Timbre::Strings));
         assert!(!metal.layers[Layer::Drums.index()].is_empty());
         assert!(!metal.layers[Layer::RhythmGuitar.index()].is_empty());
         assert!(metal.layers[Layer::Choir.index()].is_empty());
@@ -990,6 +995,9 @@ mod tests {
         assert!(plan.layers[Layer::Arp.index()]
             .iter()
             .all(|event| event.timbre == Timbre::Strings));
+        assert!(plan.layers[Layer::Lead.index()]
+            .iter()
+            .all(|event| event.timbre == Timbre::ClassicalLead));
         assert!(plan.layers[Layer::Strings.index()]
             .iter()
             .all(|event| event.timbre == Timbre::ClassicalStrings));
