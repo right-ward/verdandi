@@ -27,9 +27,13 @@ fn main() {
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(42);
     let preset = match std::env::args().nth(2).as_deref() {
-        Some("contemplative") | Some("classical-ambient") | Some("classical") => MusicPreset::ClassicalAmbient,
+        Some("contemplative") | Some("classical-ambient") | Some("classical") => {
+            MusicPreset::ClassicalAmbient
+        }
         Some("warbound") | Some("heavy-metal") | Some("metal") => MusicPreset::HeavyMetal,
-        Some("orchestral") | Some("legendary-metal") | Some("legendary") => MusicPreset::LegendaryMetal,
+        Some("orchestral") | Some("legendary-metal") | Some("legendary") => {
+            MusicPreset::LegendaryMetal
+        }
         _ => MusicPreset::MythicAmbient,
     };
     let pace = if matches!(
