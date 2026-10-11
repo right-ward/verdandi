@@ -1,6 +1,7 @@
 //! Render a deterministic Verdandi arrangement to a standalone stereo WAV file.
 //!
 //! cargo run --release --no-default-features --example render_wav -- 1234 mythic-ambient 8 mythic.wav
+//! cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 pad.wav standard pad
 //! cargo run --release --no-default-features --example render_wav -- 1234 heavy-metal 8 heavy.wav fast
 
 use std::env;
@@ -11,7 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use verdandi::composer::STEPS_PER_LOOP;
-use verdandi::prelude::{Engine, MusicConfig, MusicPace, MusicPreset, MusicShared};
+use verdandi::prelude::{Engine, Layer, MusicConfig, MusicPace, MusicPreset, MusicShared};
 
 const CHANNELS: u16 = 2;
 const BITS_PER_SAMPLE: u16 = 16;
@@ -20,15 +21,18 @@ const SAMPLES_PER_CHUNK: usize = 8_192;
 fn main() {
     if let Err(error) = run() {
         eprintln!("{error}");
-        eprintln!("Usage: render_wav <seed> <preset> <loops> <output.wav> [standard|fast]");
+        eprintln!("Usage: render_wav <seed> <preset> <loops> <output.wav> [standard|fast] [layer]");
+        eprintln!("Layers: drums, bass, pad, arp, lead, rhythm-guitar, strings, choir");
         std::process::exit(2);
     }
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
-    if !(4..=5).contains(&args.len()) {
-        return Err("expected a seed, preset, loop count, output path, and optional pace".into());
+    if !(4..=6).contains(&args.len()) {
+        return Err(
+            "expected seed, preset, loop count, output path, and optional pace and layer".into(),
+        );
     }
 
     let seed = args[0].parse::<u64>().map_err(|_| {
@@ -67,10 +71,28 @@ fn run() -> Result<(), Box<dyn Error>> {
         other => return Err(format!("unknown pace {other:?}; use standard or fast").into()),
     };
 
+    let isolated_layer = args.get(5).map(|name| parse_layer(name)).transpose()?;
+    if let Some(layer) = isolated_layer {
+        if !layer.used_by(preset) {
+            return Err(
+                format!("layer {:?} is not used by the {} preset", args[5], args[1]).into(),
+            );
+        }
+    }
+
+    let mut layers_enabled = [true; Layer::COUNT];
+    if let Some(layer) = isolated_layer {
+        layers_enabled.fill(false);
+        layers_enabled[layer.index()] = true;
+    }
+
     let config = MusicConfig {
         seed,
         preset,
         pace,
+        layers_enabled,
+        auto_intensity: isolated_layer.is_none(),
+        intensity: 1.0,
         ..MusicConfig::default()
     };
     let shared = Arc::new(MusicShared::new(&config));
@@ -129,11 +151,35 @@ fn run() -> Result<(), Box<dyn Error>> {
     writer.flush()?;
 
     let duration_secs = total_frames as f64 / f64::from(config.sample_rate);
-    println!(
-        "Wrote {loops} loop(s), {duration_secs:.1}s at {bpm:.1} BPM, to {}",
-        output_path.display()
-    );
+    if let Some(layer) = isolated_layer {
+        println!(
+            "Wrote {loops} loop(s) of the {layer:?} layer, {duration_secs:.1}s at {bpm:.1} BPM, to {}",
+            output_path.display()
+        );
+    } else {
+        println!(
+            "Wrote {loops} loop(s), {duration_secs:.1}s at {bpm:.1} BPM, to {}",
+            output_path.display()
+        );
+    }
     Ok(())
+}
+
+fn parse_layer(name: &str) -> Result<Layer, Box<dyn Error>> {
+    match name {
+        "drums" => Ok(Layer::Drums),
+        "bass" => Ok(Layer::Bass),
+        "pad" => Ok(Layer::Pad),
+        "arp" => Ok(Layer::Arp),
+        "lead" => Ok(Layer::Lead),
+        "rhythm-guitar" => Ok(Layer::RhythmGuitar),
+        "strings" => Ok(Layer::Strings),
+        "choir" => Ok(Layer::Choir),
+        other => Err(format!(
+            "unknown layer {other:?}; use drums, bass, pad, arp, lead, rhythm-guitar, strings, or choir"
+        )
+        .into()),
+    }
 }
 
 fn wav_header(sample_rate: u32, data_size: u32, riff_size: u32) -> [u8; 44] {
