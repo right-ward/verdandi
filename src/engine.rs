@@ -10,9 +10,51 @@ use std::sync::Arc;
 
 use crate::composer::{Composer, Layer, LayerAction, LoopPlan, STEPS_PER_BAR, STEPS_PER_LOOP};
 use crate::preset::{MusicPace, MusicPreset};
-use crate::synth::Synth;
+use crate::synth::{Synth, Timbre};
 use crate::theory::{ScaleKind, Theme, ThemeOverrides, NOTE_NAMES};
 
+/// A short synthesized cue for a game event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum MusicStinger { CombatStart = 1, Victory = 2, BossReveal = 3, Transition = 4 }
+impl MusicStinger {
+    fn from_request(value: u32) -> Option<Self> {
+        match value { 1 => Some(Self::CombatStart), 2 => Some(Self::Victory), 3 => Some(Self::BossReveal), 4 => Some(Self::Transition), _ => None }
+    }
+}
+#[derive(Clone, Copy)]
+struct StingerNote { step: u8, degree: i8, octave: i8, velocity: f32, length_steps: u8 }
+fn stinger_notes(kind: MusicStinger) -> &'static [StingerNote] {
+    use MusicStinger::*;
+    match kind {
+        CombatStart => &[
+            StingerNote { step: 0, degree: 0, octave: 1, velocity: 0.85, length_steps: 2 },
+            StingerNote { step: 2, degree: 2, octave: 1, velocity: 0.72, length_steps: 2 },
+            StingerNote { step: 4, degree: 4, octave: 1, velocity: 0.8, length_steps: 4 },
+            StingerNote { step: 8, degree: 6, octave: 1, velocity: 0.95, length_steps: 5 },
+        ],
+        Victory => &[
+            StingerNote { step: 0, degree: 0, octave: 1, velocity: 0.72, length_steps: 3 },
+            StingerNote { step: 0, degree: 2, octave: 1, velocity: 0.62, length_steps: 3 },
+            StingerNote { step: 0, degree: 4, octave: 1, velocity: 0.62, length_steps: 3 },
+            StingerNote { step: 4, degree: 4, octave: 1, velocity: 0.78, length_steps: 2 },
+            StingerNote { step: 6, degree: 5, octave: 1, velocity: 0.82, length_steps: 2 },
+            StingerNote { step: 8, degree: 6, octave: 1, velocity: 0.92, length_steps: 3 },
+            StingerNote { step: 12, degree: 0, octave: 2, velocity: 0.95, length_steps: 5 },
+        ],
+        BossReveal => &[
+            StingerNote { step: 0, degree: 0, octave: 0, velocity: 0.95, length_steps: 4 },
+            StingerNote { step: 4, degree: 0, octave: 1, velocity: 0.82, length_steps: 3 },
+            StingerNote { step: 7, degree: 2, octave: 1, velocity: 0.84, length_steps: 3 },
+            StingerNote { step: 10, degree: 4, octave: 1, velocity: 0.9, length_steps: 6 },
+        ],
+        Transition => &[
+            StingerNote { step: 0, degree: 0, octave: 1, velocity: 0.65, length_steps: 3 },
+            StingerNote { step: 4, degree: 2, octave: 1, velocity: 0.58, length_steps: 3 },
+            StingerNote { step: 8, degree: 4, octave: 1, velocity: 0.62, length_steps: 5 },
+        ],
+    }
+}
 #[derive(Clone, Debug)]
 pub struct MusicConfig {
     pub seed: u64,
@@ -84,6 +126,8 @@ pub struct MusicShared {
     seed_pending: AtomicBool,
     preset_request: AtomicU32,
     preset_pending: AtomicBool,
+    stinger_request: AtomicU32,
+    stinger_pending: AtomicBool,
     layer_mask: AtomicU32,
     intensity: AtomicU32,
     auto_intensity: AtomicBool,
@@ -113,6 +157,8 @@ impl MusicShared {
             seed_pending: AtomicBool::new(false),
             preset_request: AtomicU32::new(encode_preset(cfg.preset, cfg.pace, false)),
             preset_pending: AtomicBool::new(false),
+            stinger_request: AtomicU32::new(0),
+            stinger_pending: AtomicBool::new(false),
             layer_mask: AtomicU32::new(mask),
             intensity: AtomicU32::new(cfg.intensity.clamp(0.0, 1.0).to_bits()),
             auto_intensity: AtomicBool::new(cfg.auto_intensity),
@@ -166,6 +212,14 @@ impl MusicShared {
         self.preset_pending.store(true, Release);
     }
 
+    /// Request a stinger; the latest queued request wins.
+    pub fn request_stinger(&self, stinger: MusicStinger) {
+        self.stinger_request.store(stinger as u32, Relaxed);
+        self.stinger_pending.store(true, Release);
+    }
+    fn take_stinger_request(&self) -> Option<MusicStinger> {
+        if self.stinger_pending.swap(false, Acquire) { MusicStinger::from_request(self.stinger_request.load(Relaxed)) } else { None }
+    }
     fn take_preset_request(&self) -> Option<(MusicPreset, MusicPace, bool)> {
         if self.preset_pending.swap(false, Acquire) {
             Some(decode_preset(self.preset_request.load(Relaxed)))
@@ -282,6 +336,10 @@ pub struct Engine {
     transition: Option<Box<Engine>>,
     transition_elapsed: u64,
     transition_frames: u64,
+    stinger_synth: Synth,
+    active_stinger: Option<MusicStinger>,
+    stinger_step: u8,
+    stinger_countdown: f64,
 }
 
 impl Engine {
@@ -302,6 +360,7 @@ impl Engine {
         };
         let theme = Theme::from_seed_for_preset(seed, &cfg.theme, cfg.preset, cfg.pace);
         let step_len = step_len_samples(theme.bpm, cfg.sample_rate);
+        let stinger_bpm = theme.bpm;
         let synth = Synth::new(cfg.sample_rate, theme.bpm);
         let engine = Self {
             shared,
@@ -321,6 +380,10 @@ impl Engine {
             transition: None,
             transition_elapsed: 0,
             transition_frames: (f64::from(cfg.sample_rate) * 2.0).max(1.0) as u64,
+            stinger_synth: Synth::new(cfg.sample_rate, stinger_bpm),
+            active_stinger: None,
+            stinger_step: 0,
+            stinger_countdown: 0.0,
         };
         if publish_status {
             engine.publish_theme();
@@ -439,8 +502,32 @@ impl Engine {
         std::mem::swap(&mut self.countdown, &mut other.countdown);
     }
 
+    fn start_stinger(&mut self, kind: MusicStinger) {
+        self.active_stinger = Some(kind);
+        self.stinger_step = 0;
+        self.stinger_countdown = 0.0;
+    }
+    fn render_stinger(&mut self) -> (f32, f32) {
+        if let Some(kind) = self.active_stinger {
+            if self.stinger_countdown <= 0.0 {
+                for note in stinger_notes(kind).iter().filter(|note| note.step == self.stinger_step) {
+                    let theme = self.composer.theme();
+                    let degree = note.degree.rem_euclid(7) as usize;
+                    let midi = (theme.tonic + theme.scale.intervals()[degree] + i32::from(note.octave) * 12).clamp(24, 108) as u8;
+                    let step_secs = (60.0 / theme.bpm / 4.0) as f32;
+                    self.stinger_synth.note_on(Timbre::Bell, midi, note.velocity, step_secs * f32::from(note.length_steps));
+                }
+                self.stinger_step += 1;
+                if self.stinger_step >= 18 { self.active_stinger = None; }
+                self.stinger_countdown += self.step_len;
+            }
+            self.stinger_countdown -= 1.0;
+        }
+        self.stinger_synth.render_frame()
+    }
     pub fn render_frame(&mut self) -> (f32, f32) {
         if self.publish_status {
+            if let Some(stinger) = self.shared.take_stinger_request() { self.start_stinger(stinger); }
             if let Some(request) = self.shared.take_preset_request() {
                 self.pending_preset = Some(request);
             }
@@ -466,7 +553,10 @@ impl Engine {
             self.countdown += self.step_len;
         }
         self.countdown -= 1.0;
-        let outgoing = self.synth.render_frame();
+        let mut outgoing = self.synth.render_frame();
+        let stinger = self.render_stinger();
+        outgoing.0 = (outgoing.0 + stinger.0 * 0.55).tanh();
+        outgoing.1 = (outgoing.1 + stinger.1 * 0.55).tanh();
         if let Some(incoming) = self.transition.as_mut() {
             let target = incoming.render_frame();
             let t =
