@@ -459,7 +459,6 @@ impl Synth {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -475,9 +474,14 @@ mod tests {
         let first = render_voice(Timbre::Pluck, 64, 44_100);
         let second = render_voice(Timbre::Pluck, 64, 44_100);
         assert_eq!(first, second);
-        assert!(first.iter().any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
+        assert!(first
+            .iter()
+            .any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
         assert!(first.iter().all(|(left, right)| {
-            left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
+            left.is_finite()
+                && right.is_finite()
+                && left.abs() <= 1.0
+                && right.abs() <= 1.0
         }));
     }
 
