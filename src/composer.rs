@@ -299,7 +299,7 @@ fn generate_for_preset(
             | MusicPreset::LegendaryMetal
             | MusicPreset::ClassicalAmbient => {
                 gen_strings(theme, rng, preset == MusicPreset::ClassicalAmbient)
-            },
+            }
             MusicPreset::HeavyMetal => Vec::new(),
         },
         Layer::Choir => match preset {
