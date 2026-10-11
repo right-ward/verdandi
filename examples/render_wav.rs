@@ -21,9 +21,7 @@ const SAMPLES_PER_CHUNK: usize = 8_192;
 fn main() {
     if let Err(error) = run() {
         eprintln!("{error}");
-        eprintln!(
-            "Usage: render_wav <seed> <preset> <loops> <output.wav> [standard|fast] [layer]"
-        );
+        eprintln!("Usage: render_wav <seed> <preset> <loops> <output.wav> [standard|fast] [layer]");
         eprintln!("Layers: drums, bass, pad, arp, lead, rhythm-guitar, strings, choir");
         std::process::exit(2);
     }
@@ -32,7 +30,9 @@ fn main() {
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
     if !(4..=6).contains(&args.len()) {
-        return Err("expected seed, preset, loop count, output path, and optional pace and layer".into());
+        return Err(
+            "expected seed, preset, loop count, output path, and optional pace and layer".into(),
+        );
     }
 
     let seed = args[0].parse::<u64>().map_err(|_| {
@@ -71,17 +71,12 @@ fn run() -> Result<(), Box<dyn Error>> {
         other => return Err(format!("unknown pace {other:?}; use standard or fast").into()),
     };
 
-    let isolated_layer = args
-        .get(5)
-        .map(|name| parse_layer(name))
-        .transpose()?;
+    let isolated_layer = args.get(5).map(|name| parse_layer(name)).transpose()?;
     if let Some(layer) = isolated_layer {
         if !layer.used_by(preset) {
-            return Err(format!(
-                "layer {:?} is not used by the {} preset",
-                args[5], args[1]
-            )
-            .into());
+            return Err(
+                format!("layer {:?} is not used by the {} preset", args[5], args[1]).into(),
+            );
         }
     }
 
