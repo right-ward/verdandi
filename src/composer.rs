@@ -473,11 +473,19 @@ fn gen_classical_arp(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
                 continue;
             }
             // Let later bars open up slightly without changing the quiet character.
-            let octave_lift = if bar == 2 && i == 2 && rng.chance(0.55) { 12 } else { 0 };
+            let octave_lift = if bar == 2 && i == 2 && rng.chance(0.55) {
+                12
+            } else {
+                0
+            };
             out.push(NoteEvent {
                 step: bar * STEPS_PER_BAR + step,
                 len: if bar == 3 && i == 3 { 2 } else { 3 },
-                note: to_u8(fold_into(theme.midi(7 + root + pattern[i]) + octave_lift, 52, 76)),
+                note: to_u8(fold_into(
+                    theme.midi(7 + root + pattern[i]) + octave_lift,
+                    52,
+                    76,
+                )),
                 vel: if step == 0 { 0.3 } else { 0.22 },
                 timbre: Timbre::Strings,
             });
