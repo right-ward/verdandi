@@ -14,6 +14,7 @@ use bevy::reflect::TypePath;
 
 use crate::composer::Layer;
 use crate::engine::{Engine, MusicConfig, MusicShared, MusicStatus};
+use crate::preset::{MusicPace, MusicPreset};
 
 const CHUNK_FRAMES: usize = 512;
 
@@ -137,6 +138,16 @@ impl MusicController {
 
     pub fn auto_intensity(&self) -> bool {
         self.shared.auto_intensity()
+    }
+
+    /// Queue a preset/pace change for the next bar, then crossfade over two seconds.
+    pub fn set_preset(&self, preset: MusicPreset, pace: MusicPace) {
+        self.shared.request_preset(preset, pace);
+    }
+
+    /// Start the two-second preset crossfade as soon as the audio callback processes it.
+    pub fn set_preset_immediate(&self, preset: MusicPreset, pace: MusicPace) {
+        self.shared.request_preset_immediate(preset, pace);
     }
 
     pub fn status(&self) -> MusicStatus {

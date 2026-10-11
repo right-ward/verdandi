@@ -1,0 +1,35 @@
+[1m[92m   Compiling[0m verdandi v0.4.0 (/data/data/com.termux/files/home/verdandi)
+[1m[92m    Finished[0m `test` profile [optimized + debuginfo] target(s) in 30.57s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/verdandi-900e3d9455b7ad96)
+
+running 21 tests
+test composer::tests::different_seeds_differ ... ok
+test composer::tests::classical_ambient_uses_string_led_accompaniment_without_drums ... ok
+test composer::tests::loops_vary_over_time ... ok
+test composer::tests::events_stay_in_bounds ... ok
+test composer::tests::presets_generate_distinct_layer_families ... ok
+test composer::tests::preset_layer_membership_matches_arrangement ... ok
+test composer::tests::same_seed_same_music ... ok
+test rng::tests::derived_seeds_differ ... ok
+test rng::tests::range_and_float_bounds ... ok
+test engine::tests::reseed_request_is_consumed_at_loop_boundary ... ok
+test rng::tests::same_seed_same_stream ... ok
+test theory::tests::degrees_map_to_scale ... ok
+test theory::tests::ambient_pace_does_not_change_its_musical_profile ... ok
+test theory::tests::classical_ambient_pace_does_not_change_its_musical_profile ... ok
+test theory::tests::fold_lands_in_range ... ok
+test theory::tests::theme_is_deterministic_and_in_range ... ok
+test theory::tests::preset_pace_sets_distinct_tempo_ranges ... ok
+test theory::tests::preset_theme_overrides_take_priority ... ok
+test engine::tests::deterministic_for_a_seed ... ok
+test engine::tests::produces_bounded_audible_output ... ok
+test engine::tests::different_seeds_sound_different ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+[1m[92m   Doc-tests[0m verdandi
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
