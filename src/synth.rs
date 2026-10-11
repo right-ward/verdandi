@@ -16,6 +16,7 @@ pub enum Timbre {
     Lead,
     Guitar,
     Strings,
+    ClassicalStrings,
     Choir,
     Bell,
 }
@@ -38,6 +39,7 @@ fn level(timbre: Timbre) -> f32 {
         Timbre::Lead => 0.28,
         Timbre::Guitar => 0.36,
         Timbre::Strings => 0.28,
+        Timbre::ClassicalStrings => 0.23,
         Timbre::Choir => 0.2,
         Timbre::Bell => 0.24,
     }
@@ -55,6 +57,7 @@ fn default_pan(timbre: Timbre, note: u8) -> f32 {
         Timbre::Lead => 0.1,
         Timbre::Guitar => spread * 0.7,
         Timbre::Strings => spread * 1.1,
+        Timbre::ClassicalStrings => spread * 1.25,
         Timbre::Choir => spread * 1.4,
         Timbre::Bell => spread * 1.2,
     }
@@ -97,7 +100,7 @@ impl Voice {
             Timbre::Pad => gate + (0.9 * sr) as u32,
             Timbre::Lead => gate + (0.18 * sr) as u32,
             Timbre::Guitar => gate + (0.12 * sr) as u32,
-            Timbre::Strings => gate + (0.9 * sr) as u32,
+            Timbre::Strings | Timbre::ClassicalStrings => gate + (0.9 * sr) as u32,
             Timbre::Choir => gate + (0.9 * sr) as u32,
             Timbre::Bell => (1.6 * sr) as u32,
         };
@@ -199,12 +202,15 @@ impl Voice {
                 (sub * 0.7 + self.lp * 0.6) * self.adsr(0.004, 0.15, 0.6, 0.08)
             }
             Timbre::Pad => {
-                self.phase = (self.phase + self.freq * 0.997 * dt).fract();
-                self.phase2 = (self.phase2 + self.freq * 1.003 * dt).fract();
-                let x = (2.0 * self.phase - 1.0) + (2.0 * self.phase2 - 1.0);
-                let a = 1.0 - (-TAU * 1400.0 * dt).exp();
-                self.lp += a * (x * 0.5 - self.lp);
-                self.lp * self.adsr(0.35, 0.4, 0.75, 0.9)
+                // A warm, stable foundation: emphasize the fundamental instead of detuned
+                // sawtooths, whose beating and upper harmonics made chords sound brassy.
+                self.phase = (self.phase + self.freq * dt).fract();
+                let fundamental = (self.phase * TAU).sin();
+                let upper = (self.phase * TAU * 2.0).sin();
+                let cutoff = 760.0 + 130.0 * (TAU * 0.12 * ts).sin();
+                let a = 1.0 - (-TAU * cutoff * dt).exp();
+                self.lp += a * (fundamental * 0.86 + upper * 0.14 - self.lp);
+                self.lp * self.adsr(0.7, 0.5, 0.82, 1.0)
             }
             Timbre::Pluck => {
                 self.phase = (self.phase + self.freq * dt).fract();
@@ -250,6 +256,22 @@ impl Voice {
                 let a = 1.0 - (-TAU * 1450.0 * dt).exp();
                 self.lp += a * (bowed - self.lp);
                 self.lp * self.adsr(0.16, 0.28, 0.82, 0.82)
+            }
+            Timbre::ClassicalStrings => {
+                // Softer bowed-string approximation reserved for Classical Ambient. Keep the
+                // older Strings voice intact because the arpeggio intentionally has a brighter,
+                // almost reed-like quality.
+                let vib = 1.0 + 0.0018 * (TAU * 5.0 * ts).sin() * (ts * 2.5).min(1.0);
+                self.phase = (self.phase + self.freq * vib * dt).fract();
+                self.phase2 = (self.phase2 + self.freq * 2.0 * dt).fract();
+                let fundamental = (self.phase * TAU).sin();
+                let second = (self.phase2 * TAU).sin();
+                let third = (self.phase * TAU * 3.0).sin();
+                let bowed = fundamental * 0.76 + second * 0.19 + third * 0.05;
+                let cutoff = 1250.0 + 180.0 * (TAU * 0.17 * ts).sin();
+                let a = 1.0 - (-TAU * cutoff * dt).exp();
+                self.lp += a * (bowed - self.lp);
+                self.lp * self.adsr(0.24, 0.3, 0.8, 0.86)
             }
             Timbre::Choir => {
                 self.phase = (self.phase + self.freq * dt).fract();
@@ -367,7 +389,12 @@ impl Synth {
             r += s * v.gain_r;
             if matches!(
                 v.timbre,
-                Timbre::Pluck | Timbre::Lead | Timbre::Strings | Timbre::Choir | Timbre::Bell
+                Timbre::Pluck
+                    | Timbre::Lead
+                    | Timbre::Strings
+                    | Timbre::ClassicalStrings
+                    | Timbre::Choir
+                    | Timbre::Bell
             ) {
                 send += s;
             }
