@@ -242,8 +242,7 @@ impl Voice {
                 // Karplus–Strong string: a seeded noise burst circulates around a short delay
                 // line, while averaging adjacent samples damps the upper partials naturally.
                 let next = (self.pluck_pos + 1) % self.pluck_len;
-                let string = 0.5
-                    * (self.pluck_buffer[self.pluck_pos] + self.pluck_buffer[next]);
+                let string = 0.5 * (self.pluck_buffer[self.pluck_pos] + self.pluck_buffer[next]);
                 self.pluck_buffer[self.pluck_pos] = string * 0.996;
                 self.pluck_pos = next;
                 let pick = self.next_noise() * (-ts * 520.0).exp() * 0.035;
@@ -478,10 +477,7 @@ mod tests {
             .iter()
             .any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
         assert!(first.iter().all(|(left, right)| {
-            left.is_finite()
-                && right.is_finite()
-                && left.abs() <= 1.0
-                && right.abs() <= 1.0
+            left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
         }));
     }
 
@@ -490,7 +486,9 @@ mod tests {
         let first = render_voice(Timbre::Strings, 69, 44_100);
         let second = render_voice(Timbre::Strings, 69, 44_100);
         assert_eq!(first, second);
-        assert!(first.iter().any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
+        assert!(first
+            .iter()
+            .any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
         assert!(first.iter().all(|(left, right)| {
             left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
         }));
