@@ -623,6 +623,33 @@ mod tests {
     }
 
     #[test]
+    fn stingers_are_deterministic_and_mix_over_the_track() {
+        fn render_with_stinger(kind: MusicStinger) -> Vec<f32> {
+            let cfg = MusicConfig { seed: 44, ..Default::default() };
+            let shared = Arc::new(MusicShared::new(&cfg));
+            let mut engine = Engine::new(shared.clone(), &cfg);
+            shared.request_stinger(kind);
+            let mut out = vec![0.0; 44_100 * 4];
+            engine.render_interleaved(&mut out);
+            out
+        }
+        let first = render_with_stinger(MusicStinger::Victory);
+        let second = render_with_stinger(MusicStinger::Victory);
+        assert_eq!(first, second);
+        assert!(first.iter().any(|sample| sample.abs() > 0.01));
+        assert!(first.iter().all(|sample| sample.is_finite() && sample.abs() <= 1.0));
+    }
+
+    #[test]
+    fn stinger_patterns_have_notes() {
+        for kind in [MusicStinger::CombatStart, MusicStinger::Victory, MusicStinger::BossReveal, MusicStinger::Transition] {
+            let notes = stinger_notes(kind);
+            assert!(!notes.is_empty());
+            assert!(notes.iter().all(|note| note.step < 18 && (0..=1).contains(&note.octave)));
+        }
+    }
+
+    #[test]
     fn reseed_request_is_consumed_at_loop_boundary() {
         let cfg = MusicConfig::default();
         let shared = Arc::new(MusicShared::new(&cfg));
