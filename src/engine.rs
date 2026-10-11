@@ -16,42 +16,167 @@ use crate::theory::{ScaleKind, Theme, ThemeOverrides, NOTE_NAMES};
 /// A short synthesized cue for a game event.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u32)]
-pub enum MusicStinger { CombatStart = 1, Victory = 2, BossReveal = 3, Transition = 4 }
+pub enum MusicStinger {
+    CombatStart = 1,
+    Victory = 2,
+    BossReveal = 3,
+    Transition = 4,
+}
 impl MusicStinger {
     fn from_request(value: u32) -> Option<Self> {
-        match value { 1 => Some(Self::CombatStart), 2 => Some(Self::Victory), 3 => Some(Self::BossReveal), 4 => Some(Self::Transition), _ => None }
+        match value {
+            1 => Some(Self::CombatStart),
+            2 => Some(Self::Victory),
+            3 => Some(Self::BossReveal),
+            4 => Some(Self::Transition),
+            _ => None,
+        }
     }
 }
 #[derive(Clone, Copy)]
-struct StingerNote { step: u8, degree: i8, octave: i8, velocity: f32, length_steps: u8 }
+struct StingerNote {
+    step: u8,
+    degree: i8,
+    octave: i8,
+    velocity: f32,
+    length_steps: u8,
+}
 fn stinger_notes(kind: MusicStinger) -> &'static [StingerNote] {
     use MusicStinger::*;
     match kind {
         CombatStart => &[
-            StingerNote { step: 0, degree: 0, octave: 1, velocity: 0.85, length_steps: 2 },
-            StingerNote { step: 2, degree: 2, octave: 1, velocity: 0.72, length_steps: 2 },
-            StingerNote { step: 4, degree: 4, octave: 1, velocity: 0.8, length_steps: 4 },
-            StingerNote { step: 8, degree: 6, octave: 1, velocity: 0.95, length_steps: 5 },
+            StingerNote {
+                step: 0,
+                degree: 0,
+                octave: 1,
+                velocity: 0.85,
+                length_steps: 2,
+            },
+            StingerNote {
+                step: 2,
+                degree: 2,
+                octave: 1,
+                velocity: 0.72,
+                length_steps: 2,
+            },
+            StingerNote {
+                step: 4,
+                degree: 4,
+                octave: 1,
+                velocity: 0.8,
+                length_steps: 4,
+            },
+            StingerNote {
+                step: 8,
+                degree: 6,
+                octave: 1,
+                velocity: 0.95,
+                length_steps: 5,
+            },
         ],
         Victory => &[
-            StingerNote { step: 0, degree: 0, octave: 1, velocity: 0.72, length_steps: 3 },
-            StingerNote { step: 0, degree: 2, octave: 1, velocity: 0.62, length_steps: 3 },
-            StingerNote { step: 0, degree: 4, octave: 1, velocity: 0.62, length_steps: 3 },
-            StingerNote { step: 4, degree: 4, octave: 1, velocity: 0.78, length_steps: 2 },
-            StingerNote { step: 6, degree: 5, octave: 1, velocity: 0.82, length_steps: 2 },
-            StingerNote { step: 8, degree: 6, octave: 1, velocity: 0.92, length_steps: 3 },
-            StingerNote { step: 12, degree: 0, octave: 2, velocity: 0.95, length_steps: 5 },
+            StingerNote {
+                step: 0,
+                degree: 0,
+                octave: 1,
+                velocity: 0.72,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 0,
+                degree: 2,
+                octave: 1,
+                velocity: 0.62,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 0,
+                degree: 4,
+                octave: 1,
+                velocity: 0.62,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 4,
+                degree: 4,
+                octave: 1,
+                velocity: 0.78,
+                length_steps: 2,
+            },
+            StingerNote {
+                step: 6,
+                degree: 5,
+                octave: 1,
+                velocity: 0.82,
+                length_steps: 2,
+            },
+            StingerNote {
+                step: 8,
+                degree: 6,
+                octave: 1,
+                velocity: 0.92,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 12,
+                degree: 0,
+                octave: 2,
+                velocity: 0.95,
+                length_steps: 5,
+            },
         ],
         BossReveal => &[
-            StingerNote { step: 0, degree: 0, octave: 0, velocity: 0.95, length_steps: 4 },
-            StingerNote { step: 4, degree: 0, octave: 1, velocity: 0.82, length_steps: 3 },
-            StingerNote { step: 7, degree: 2, octave: 1, velocity: 0.84, length_steps: 3 },
-            StingerNote { step: 10, degree: 4, octave: 1, velocity: 0.9, length_steps: 6 },
+            StingerNote {
+                step: 0,
+                degree: 0,
+                octave: 0,
+                velocity: 0.95,
+                length_steps: 4,
+            },
+            StingerNote {
+                step: 4,
+                degree: 0,
+                octave: 1,
+                velocity: 0.82,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 7,
+                degree: 2,
+                octave: 1,
+                velocity: 0.84,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 10,
+                degree: 4,
+                octave: 1,
+                velocity: 0.9,
+                length_steps: 6,
+            },
         ],
         Transition => &[
-            StingerNote { step: 0, degree: 0, octave: 1, velocity: 0.65, length_steps: 3 },
-            StingerNote { step: 4, degree: 2, octave: 1, velocity: 0.58, length_steps: 3 },
-            StingerNote { step: 8, degree: 4, octave: 1, velocity: 0.62, length_steps: 5 },
+            StingerNote {
+                step: 0,
+                degree: 0,
+                octave: 1,
+                velocity: 0.65,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 4,
+                degree: 2,
+                octave: 1,
+                velocity: 0.58,
+                length_steps: 3,
+            },
+            StingerNote {
+                step: 8,
+                degree: 4,
+                octave: 1,
+                velocity: 0.62,
+                length_steps: 5,
+            },
         ],
     }
 }
@@ -218,7 +343,11 @@ impl MusicShared {
         self.stinger_pending.store(true, Release);
     }
     fn take_stinger_request(&self) -> Option<MusicStinger> {
-        if self.stinger_pending.swap(false, Acquire) { MusicStinger::from_request(self.stinger_request.load(Relaxed)) } else { None }
+        if self.stinger_pending.swap(false, Acquire) {
+            MusicStinger::from_request(self.stinger_request.load(Relaxed))
+        } else {
+            None
+        }
     }
     fn take_preset_request(&self) -> Option<(MusicPreset, MusicPace, bool)> {
         if self.preset_pending.swap(false, Acquire) {
@@ -510,15 +639,28 @@ impl Engine {
     fn render_stinger(&mut self) -> (f32, f32) {
         if let Some(kind) = self.active_stinger {
             if self.stinger_countdown <= 0.0 {
-                for note in stinger_notes(kind).iter().filter(|note| note.step == self.stinger_step) {
+                for note in stinger_notes(kind)
+                    .iter()
+                    .filter(|note| note.step == self.stinger_step)
+                {
                     let theme = self.composer.theme();
                     let degree = note.degree.rem_euclid(7) as usize;
-                    let midi = (theme.tonic + theme.scale.intervals()[degree] + i32::from(note.octave) * 12).clamp(24, 108) as u8;
+                    let midi = (theme.tonic
+                        + theme.scale.intervals()[degree]
+                        + i32::from(note.octave) * 12)
+                        .clamp(24, 108) as u8;
                     let step_secs = (60.0 / theme.bpm / 4.0) as f32;
-                    self.stinger_synth.note_on(Timbre::Bell, midi, note.velocity, step_secs * f32::from(note.length_steps));
+                    self.stinger_synth.note_on(
+                        Timbre::Bell,
+                        midi,
+                        note.velocity,
+                        step_secs * f32::from(note.length_steps),
+                    );
                 }
                 self.stinger_step += 1;
-                if self.stinger_step >= 18 { self.active_stinger = None; }
+                if self.stinger_step >= 18 {
+                    self.active_stinger = None;
+                }
                 self.stinger_countdown += self.step_len;
             }
             self.stinger_countdown -= 1.0;
@@ -527,7 +669,9 @@ impl Engine {
     }
     pub fn render_frame(&mut self) -> (f32, f32) {
         if self.publish_status {
-            if let Some(stinger) = self.shared.take_stinger_request() { self.start_stinger(stinger); }
+            if let Some(stinger) = self.shared.take_stinger_request() {
+                self.start_stinger(stinger);
+            }
             if let Some(request) = self.shared.take_preset_request() {
                 self.pending_preset = Some(request);
             }
@@ -625,7 +769,10 @@ mod tests {
     #[test]
     fn stingers_are_deterministic_and_mix_over_the_track() {
         fn render_with_stinger(kind: MusicStinger) -> Vec<f32> {
-            let cfg = MusicConfig { seed: 44, ..Default::default() };
+            let cfg = MusicConfig {
+                seed: 44,
+                ..Default::default()
+            };
             let shared = Arc::new(MusicShared::new(&cfg));
             let mut engine = Engine::new(shared.clone(), &cfg);
             shared.request_stinger(kind);
@@ -637,15 +784,24 @@ mod tests {
         let second = render_with_stinger(MusicStinger::Victory);
         assert_eq!(first, second);
         assert!(first.iter().any(|sample| sample.abs() > 0.01));
-        assert!(first.iter().all(|sample| sample.is_finite() && sample.abs() <= 1.0));
+        assert!(first
+            .iter()
+            .all(|sample| sample.is_finite() && sample.abs() <= 1.0));
     }
 
     #[test]
     fn stinger_patterns_have_notes() {
-        for kind in [MusicStinger::CombatStart, MusicStinger::Victory, MusicStinger::BossReveal, MusicStinger::Transition] {
+        for kind in [
+            MusicStinger::CombatStart,
+            MusicStinger::Victory,
+            MusicStinger::BossReveal,
+            MusicStinger::Transition,
+        ] {
             let notes = stinger_notes(kind);
             assert!(!notes.is_empty());
-            assert!(notes.iter().all(|note| note.step < 18 && (0..=1).contains(&note.octave)));
+            assert!(notes
+                .iter()
+                .all(|note| note.step < 18 && (0..=1).contains(&note.octave)));
         }
     }
 
