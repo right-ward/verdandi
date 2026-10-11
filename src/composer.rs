@@ -990,6 +990,9 @@ mod tests {
         assert!(plan.layers[Layer::Arp.index()]
             .iter()
             .all(|event| event.timbre == Timbre::Strings));
+        assert!(plan.layers[Layer::Strings.index()]
+            .iter()
+            .all(|event| event.timbre == Timbre::ClassicalStrings));
     }
 
     #[test]
