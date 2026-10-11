@@ -282,9 +282,7 @@ fn generate_for_preset(
         },
         Layer::Lead => match preset {
             MusicPreset::MythicAmbient => gen_lead_with_timbre(theme, rng, Timbre::Strings),
-            MusicPreset::ClassicalAmbient => {
-                gen_lead_with_timbre(theme, rng, Timbre::ClassicalLead)
-            }
+            MusicPreset::ClassicalAmbient => gen_classical_lead(theme, rng),
             MusicPreset::HeavyMetal | MusicPreset::LegendaryMetal => {
                 gen_lead_with_timbre(theme, rng, Timbre::Guitar)
             }
@@ -461,22 +459,33 @@ fn gen_rhythm_guitar(theme: &Theme, rng: &mut Rng, pace: MusicPace) -> Vec<NoteE
     out
 }
 
-/// A restrained, string-led ostinato for the more classical ambient preset.
+/// A restrained, string-led ostinato whose contour changes across the four-bar phrase.
 fn gen_classical_arp(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
-    const PATTERNS: &[[i32; 4]] = &[[0, 2, 4, 2], [0, 4, 2, 4], [4, 2, 0, 2]];
-    let pattern = *rng.pick(PATTERNS);
+    const PATTERNS: &[[i32; 4]] = &[[0, 2, 4, 2], [0, 4, 2, 4], [4, 2, 0, 2], [2, 4, 2, 0]];
     let mut out = Vec::new();
 
     for bar in 0..BARS_PER_LOOP {
         let root = theme.progression[bar as usize];
+        let pattern = *rng.pick(PATTERNS);
+        let skip_chance = if bar == BARS_PER_LOOP - 1 { 0.2 } else { 0.1 };
         for (i, step) in [0u32, 4, 8, 12].into_iter().enumerate() {
-            if i > 0 && rng.chance(0.12) {
+            if i > 0 && rng.chance(skip_chance) {
                 continue;
             }
+            // Let later bars open up slightly without changing the quiet character.
+            let octave_lift = if bar == 2 && i == 2 && rng.chance(0.55) {
+                12
+            } else {
+                0
+            };
             out.push(NoteEvent {
                 step: bar * STEPS_PER_BAR + step,
-                len: 3,
-                note: to_u8(fold_into(theme.midi(7 + root + pattern[i]), 52, 76)),
+                len: if bar == 3 && i == 3 { 2 } else { 3 },
+                note: to_u8(fold_into(
+                    theme.midi(7 + root + pattern[i]) + octave_lift,
+                    52,
+                    76,
+                )),
                 vel: if step == 0 { 0.3 } else { 0.22 },
                 timbre: Timbre::Strings,
             });
@@ -785,6 +794,67 @@ fn gen_motif(rng: &mut Rng) -> Vec<MotifNote> {
     motif
 }
 
+/// A four-bar classical phrase with a recognizable opening, a varied answer, and a cadence.
+fn gen_classical_lead(theme: &Theme, rng: &mut Rng) -> Vec<NoteEvent> {
+    let motif = gen_motif(rng);
+    let mut out = Vec::new();
+
+    for bar in 0..BARS_PER_LOOP {
+        // Leave occasional space in the middle of the phrase, but keep its opening and cadence.
+        if (bar == 1 || bar == 2) && rng.chance(0.12) {
+            continue;
+        }
+
+        let root = theme.progression[bar as usize];
+        let mut notes = motif.clone();
+        match bar {
+            1 => {
+                // Answer the opening with a gently inverted contour.
+                for note in &mut notes {
+                    note.rel = (2 - note.rel).clamp(-3, 8);
+                }
+            }
+            2 => {
+                // Develop the motif with a small stepwise turn rather than repeating it verbatim.
+                if notes.len() > 2 {
+                    let start = rng.range(1, (notes.len() - 1) as u32) as usize;
+                    notes[start].rel += if rng.chance(0.5) { 1 } else { -1 };
+                    if start + 1 < notes.len() {
+                        notes[start + 1].rel += if rng.chance(0.5) { 1 } else { -1 };
+                    }
+                }
+            }
+            3 => {
+                // Shorten the final bar and resolve the last note onto the chord root.
+                let keep = notes.len().div_ceil(2);
+                notes.truncate(keep);
+                if let Some(last) = notes.last_mut() {
+                    last.rel = 0;
+                    last.len = (STEPS_PER_BAR - last.step).min(12);
+                }
+            }
+            _ => {}
+        }
+
+        for note in notes {
+            out.push(NoteEvent {
+                step: bar * STEPS_PER_BAR + note.step,
+                len: note.len,
+                note: to_u8(fold_into(theme.midi(9 + root + note.rel), 62, 88)),
+                vel: if bar == 0 {
+                    0.54 + (rng.next_f32() - 0.5) * 0.12
+                } else if bar == 3 {
+                    0.48 + (rng.next_f32() - 0.5) * 0.1
+                } else {
+                    0.52 + (rng.next_f32() - 0.5) * 0.14
+                },
+                timbre: Timbre::ClassicalLead,
+            });
+        }
+    }
+    out
+}
+
 fn gen_lead_with_timbre(theme: &Theme, rng: &mut Rng, timbre: Timbre) -> Vec<NoteEvent> {
     let motif = gen_motif(rng);
     let mut out = Vec::new();
@@ -998,6 +1068,19 @@ mod tests {
         assert!(plan.layers[Layer::Lead.index()]
             .iter()
             .all(|event| event.timbre == Timbre::ClassicalLead));
+        let lead = &plan.layers[Layer::Lead.index()];
+        let lead_by_bar: Vec<Vec<u8>> = (0..BARS_PER_LOOP)
+            .map(|bar| {
+                lead.iter()
+                    .filter(|event| event.step / STEPS_PER_BAR == bar)
+                    .map(|event| event.note)
+                    .collect()
+            })
+            .collect();
+        assert!(
+            lead_by_bar[0] != lead_by_bar[1] || lead_by_bar[1] != lead_by_bar[2],
+            "the Classical Ambient lead should develop across bars"
+        );
         assert!(plan.layers[Layer::Strings.index()]
             .iter()
             .all(|event| event.timbre == Timbre::ClassicalStrings));

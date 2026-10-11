@@ -11,7 +11,7 @@ Presets change musical composition as well as timbre:
 
 Select `MusicPace::Fast` for denser, faster metal arrangements. Both ambient presets keep their slower tempo ranges. Explicit `ThemeOverrides` for key, scale, tempo, or progression always take priority over preset defaults.
 
-The same seed, preset, pace, and overrides reproduce the same musical patterns. Layer patterns can repeat, mutate, or regenerate at four-bar loop boundaries, while intensity controls when layers become audible.
+The same seed, preset, pace, and overrides reproduce the same musical patterns. Layer patterns can repeat, mutate, or regenerate at four-bar loop boundaries, while intensity controls when layers become audible. Classical Ambient develops its lead and string ostinato across each four-bar phrase, with a clearer cadence at the end.
 
 Targets **Bevy 0.20**.
 
