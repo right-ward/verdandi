@@ -109,7 +109,7 @@ impl Voice {
         let mut pluck_noise = noise_seed | 1;
         // The pluck point changes the harmonic balance: plucking nearer the bridge keeps
         // more upper partials, while a point nearer the center suppresses them.
-        let pick_position = 0.12 + ((noise_seed >> 8) as f32 / u32::MAX as f32) * 0.3;
+        let pick_position = 0.12 + ((noise_seed >> 8) as f32 / (u32::MAX >> 8) as f32) * 0.3;
         for (index, sample) in pluck_buffer[..pluck_len].iter_mut().enumerate() {
             pluck_noise ^= pluck_noise << 13;
             pluck_noise ^= pluck_noise >> 17;
