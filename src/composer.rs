@@ -948,6 +948,7 @@ mod tests {
         assert!(ambient.layers[Layer::Drums.index()].is_empty());
         assert!(!ambient.layers[Layer::Strings.index()].is_empty());
         assert!(!ambient.layers[Layer::Arp.index()].is_empty());
+        assert!(!ambient.layers[Layer::Lead.index()].is_empty());
         assert!(ambient.layers[Layer::Lead.index()]
             .iter()
             .all(|event| event.timbre == Timbre::Strings));
