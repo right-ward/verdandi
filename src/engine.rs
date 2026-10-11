@@ -649,7 +649,7 @@ impl Engine {
                         + theme.scale.intervals()[degree]
                         + i32::from(note.octave) * 12)
                         .clamp(24, 108) as u8;
-                    let step_secs = (60.0 / theme.bpm / 4.0) as f32;
+                    let step_secs = (60.0 / theme.bpm / 4.0);
                     self.stinger_synth.note_on(
                         Timbre::Bell,
                         midi,
