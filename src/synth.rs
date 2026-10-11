@@ -14,6 +14,7 @@ pub enum Timbre {
     Pad,
     Pluck,
     Lead,
+    ClassicalLead,
     Guitar,
     Strings,
     ClassicalStrings,
@@ -37,6 +38,7 @@ fn level(timbre: Timbre) -> f32 {
         Timbre::Pad => 0.2,
         Timbre::Pluck => 0.3,
         Timbre::Lead => 0.28,
+        Timbre::ClassicalLead => 0.25,
         Timbre::Guitar => 0.36,
         Timbre::Strings => 0.28,
         Timbre::ClassicalStrings => 0.23,
@@ -55,6 +57,7 @@ fn default_pan(timbre: Timbre, note: u8) -> f32 {
         Timbre::Pad => spread * 1.4,
         Timbre::Pluck => spread * 1.2,
         Timbre::Lead => 0.1,
+        Timbre::ClassicalLead => spread * 0.45,
         Timbre::Guitar => spread * 0.7,
         Timbre::Strings => spread * 1.1,
         Timbre::ClassicalStrings => spread * 1.25,
@@ -99,6 +102,7 @@ impl Voice {
             Timbre::Bass => gate + (0.08 * sr) as u32,
             Timbre::Pad => gate + (0.9 * sr) as u32,
             Timbre::Lead => gate + (0.18 * sr) as u32,
+            Timbre::ClassicalLead => gate + (0.24 * sr) as u32,
             Timbre::Guitar => gate + (0.12 * sr) as u32,
             Timbre::Strings | Timbre::ClassicalStrings => gate + (0.9 * sr) as u32,
             Timbre::Choir => gate + (0.9 * sr) as u32,
@@ -228,6 +232,20 @@ impl Voice {
                 let a = 1.0 - (-TAU * 2600.0 * dt).exp();
                 self.lp += a * ((saw * 0.6 + sine * 0.5) - self.lp);
                 self.lp * self.adsr(0.02, 0.12, 0.7, 0.18)
+            }
+            Timbre::ClassicalLead => {
+                // A darker, smoother melodic voice for Classical Ambient. A sine-based harmonic
+                // blend keeps the high-register line clear without the bright sawtooth edge.
+                let vib = 1.0 + 0.0022 * (TAU * 5.0 * ts).sin() * (ts * 3.0).min(1.0);
+                self.phase = (self.phase + self.freq * vib * dt).fract();
+                let fundamental = (self.phase * TAU).sin();
+                let second = (self.phase * TAU * 2.0).sin();
+                let third = (self.phase * TAU * 3.0).sin();
+                let tone = fundamental * 0.78 + second * 0.18 + third * 0.04;
+                let cutoff = 1380.0 + 100.0 * (TAU * 0.18 * ts).sin();
+                let a = 1.0 - (-TAU * cutoff * dt).exp();
+                self.lp += a * (tone - self.lp);
+                self.lp * self.adsr(0.07, 0.16, 0.72, 0.24)
             }
             Timbre::Guitar => {
                 // Keep the oscillator in phase: the old detuned second saw created a
@@ -391,6 +409,7 @@ impl Synth {
                 v.timbre,
                 Timbre::Pluck
                     | Timbre::Lead
+                    | Timbre::ClassicalLead
                     | Timbre::Strings
                     | Timbre::ClassicalStrings
                     | Timbre::Choir
