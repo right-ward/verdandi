@@ -477,8 +477,17 @@ mod tests {
     use super::*;
 
     fn render_voice(timbre: Timbre, note: u8, frames: usize) -> Vec<(f32, f32)> {
+        render_voice_at_velocity(timbre, note, 0.8, frames)
+    }
+
+    fn render_voice_at_velocity(
+        timbre: Timbre,
+        note: u8,
+        velocity: f32,
+        frames: usize,
+    ) -> Vec<(f32, f32)> {
         let mut synth = Synth::new(44_100, 120.0);
-        synth.note_on(timbre, note, 0.8, 0.6);
+        synth.note_on(timbre, note, velocity, 0.6);
         (0..frames).map(|_| synth.render_frame()).collect()
     }
 
@@ -491,6 +500,18 @@ mod tests {
             .iter()
             .any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
         assert!(first.iter().all(|(left, right)| {
+            left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
+        }));
+    }
+
+    #[test]
+    fn pluck_articulation_responds_to_velocity_and_pitch() {
+        let soft = render_voice_at_velocity(Timbre::Pluck, 60, 0.25, 8_000);
+        let strong = render_voice_at_velocity(Timbre::Pluck, 60, 0.95, 8_000);
+        let higher = render_voice_at_velocity(Timbre::Pluck, 72, 0.95, 8_000);
+        assert_ne!(soft, strong);
+        assert_ne!(strong, higher);
+        assert!(soft.iter().chain(&strong).chain(&higher).all(|(left, right)| {
             left.is_finite() && right.is_finite() && left.abs() <= 1.0 && right.abs() <= 1.0
         }));
     }
