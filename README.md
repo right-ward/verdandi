@@ -60,7 +60,7 @@ Arguments are `seed preset loops output.wav [standard|fast]`. Presets also accep
 
 ```toml
 [dependencies]
-verdandi = { path = "../verdandi" }
+verdandi = { default-features = false }
 ```
 
 ```rust
