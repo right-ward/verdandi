@@ -1,8 +1,8 @@
 //! Render a deterministic Verdandi arrangement to a standalone stereo WAV file.
 //!
-//! cargo run --release --no-default-features --example render_wav -- 1234 mythic-ambient 8 mythic.wav
-//! cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 pad.wav standard pad
-//! cargo run --release --no-default-features --example render_wav -- 1234 heavy-metal 8 heavy.wav fast
+//! cargo run --release --no-default-features --example render_wav -- 1234 ethereal 8 ethereal.wav
+//! cargo run --release --no-default-features --example render_wav -- 1234 contemplative 2 pad.wav standard pad
+//! cargo run --release --no-default-features --example render_wav -- 1234 warbound 8 warbound.wav fast
 
 use std::env;
 use std::error::Error;
@@ -46,10 +46,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         "ethereal" | "mythic-ambient" | "ambient" => MusicPreset::MythicAmbient,
         "contemplative" | "classical-ambient" | "classical" => MusicPreset::ClassicalAmbient,
         "warbound" | "heavy-metal" | "metal" => MusicPreset::HeavyMetal,
-        "legendary-metal" | "legendary" => MusicPreset::LegendaryMetal,
+        "orchestral" | "legendary-metal" | "legendary" => MusicPreset::LegendaryMetal,
         other => {
             return Err(format!(
-                "unknown preset {other:?}; use mythic-ambient, classical-ambient, heavy-metal, or legendary-metal"
+                "unknown preset {other:?}; use ethereal, contemplative, warbound, or orchestral (legacy aliases are also accepted)"
             )
             .into());
         }
