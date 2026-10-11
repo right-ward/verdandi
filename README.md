@@ -112,13 +112,13 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 - When layers enter: `Layer::threshold`; auto curve: `begin_loop` in `engine.rs`.
 - New preset: add its profile in `preset.rs` and `Theme::from_seed_for_preset`, then provide style-specific generators in `composer.rs`.
 - New layer: add a `Layer` variant (update `COUNT`/`ALL`/`name`/`threshold`/`tag`/`volatility`), write a generator, and handle it in composition and mutation.
-- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The Pluck voice now uses a seeded Karplus–Strong string loop with natural high-frequency damping, while the Ethereal/Orchestral Strings voice has a softer bow onset, gradually introduced vibrato, evolving harmonics, and subtle deterministic bow noise. The dedicated Contemplative strings and metal Guitar voices remain separate so these changes do not alter their character.
+- Better sound: improve the procedural voices in `synth.rs`. Bowed-string, guitar, choir, and bell voices are stylized synthesis rather than recordings or physical models. The Pluck voice uses a seeded Karplus–Strong string loop with a variable pick position, velocity-sensitive brightness/attack, and pitch-sensitive decay, while the Ethereal/Orchestral Strings voice has a softer bow onset, gradually introduced vibrato, evolving harmonics, and subtle deterministic bow noise. The dedicated Contemplative strings and metal Guitar voices remain separate so these changes do not alter their character.
 
 ## Known limits
 
 - Fixed 4/4, 16 steps per bar, 4-bar loops.
 - Instrument voices are procedural approximations; they do not yet reproduce real acoustic violins, guitars, or choirs.
-- The metal guitar and bowed-string voices are stylized timbres, not physical models. The Pluck voice uses a simple physical-inspired string model, but still needs WAV listening tests and further tuning.
+- The metal guitar and bowed-string voices are stylized timbres, not physical models. The Pluck voice uses a simple physical-inspired string model with velocity- and pitch-dependent articulation, but still needs WAV listening tests and further tuning.
 - Runtime preset changes crossfade over two seconds; the default waits for the next bar, while the immediate variant starts as soon as the audio callback processes the request. Musical stingers are not implemented.
 - Seed changes wait for the loop boundary (about 4.6-16.6 s across built-in preset tempo ranges).
 - Intensity gating is note-level, so layers enter on the next note.
