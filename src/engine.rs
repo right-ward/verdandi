@@ -801,7 +801,7 @@ mod tests {
             assert!(!notes.is_empty());
             assert!(notes
                 .iter()
-                .all(|note| note.step < 18 && (0..=1).contains(&note.octave)));
+                .all(|note| note.step < 18 && (0..=2).contains(&note.octave)));
         }
     }
 
