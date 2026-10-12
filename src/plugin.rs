@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use bevy::reflect::TypePath;
 
 use crate::composer::Layer;
-use crate::engine::{Engine, MusicConfig, MusicShared, MusicStatus};
+use crate::engine::{Engine, MusicConfig, MusicShared, MusicStatus, MusicStinger};
 use crate::preset::{MusicPace, MusicPreset};
 
 const CHUNK_FRAMES: usize = 512;
@@ -148,6 +148,11 @@ impl MusicController {
     /// Start the two-second preset crossfade as soon as the audio callback processes it.
     pub fn set_preset_immediate(&self, preset: MusicPreset, pace: MusicPace) {
         self.shared.request_preset_immediate(preset, pace);
+    }
+
+    /// Play a short synthesized event cue over the continuing background music.
+    pub fn play_stinger(&self, stinger: MusicStinger) {
+        self.shared.request_stinger(stinger);
     }
 
     pub fn status(&self) -> MusicStatus {
