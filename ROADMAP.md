@@ -1,6 +1,6 @@
 # Verdandi Audio Quality Roadmap
 
-This document is the durable plan for improving Verdandi's instrument realism and audio quality. Update the milestone checkboxes and decisions here as work is completed so future development sessions can resume from the repository rather than relying on conversation history.
+This document is the durable plan for improving Verdandi's instrument realism and audio quality. Update the milestone checkboxes and decisions here as work is completed so future development sessions can resume from the repository rather than relying on memory.
 
 ## Goal and design direction
 
@@ -152,12 +152,3 @@ Status: **Not started**
 - **Initial candidate sources:** Karoryfer Emilyguitar and VCSL are evaluation candidates only; exact releases and licenses must be verified before inclusion.
 - **Distribution principle:** avoid forcing a large sample library into the core crate; prefer an explicit optional/separately versioned asset distribution if warranted.
 - **Non-goal for the first pass:** building a complete orchestral sampler or replacing every procedural voice at once.
-
-## How to resume this roadmap
-
-At the start of a related development session:
-1. Read this file and check which milestone is the first incomplete one.
-2. Inspect the current repository implementation and open PRs before acting.
-3. Work on the smallest milestone-sized change, preserving the exit criteria above.
-4. Update this roadmap when a decision changes or a milestone is completed, including evidence and known limitations.
-5. Do not mark a milestone complete based solely on code being written; use its exit criteria.
