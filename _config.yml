@@ -1,5 +1,5 @@
 title: "Verdandi"
-description: "Deterministic procedural music generator"
+description: "Seed-driven procedural music for games: evolving, layered soundtracks with repeatable musical patterns."
 url: "https://right-ward.github.io"
 baseurl: "/verdandi"
 lang: "en"
@@ -13,6 +13,7 @@ plugins:
   - jekyll-feed
 header_pages:
   - index.html
+  - docs.md
   - blog.md
 style: dark
 listen_for_clients_preferred_style: true
