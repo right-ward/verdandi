@@ -1,7 +1,7 @@
-title: "The Ashen Chronicle"
-description: "A dark-fantasy RPG where your choices outlive your character and the world remembers."
+title: "Verdandi"
+description: "Deterministic procedural music generator"
 url: "https://right-ward.github.io"
-baseurl: "/projects/ashen_chronicle"
+baseurl: "/projects/verdandi"
 lang: "en"
 markdown: kramdown
 permalink: /blog/:year/:month/:day/:title/
@@ -13,12 +13,11 @@ plugins:
   - jekyll-feed
 header_pages:
   - index.html
-  - game.md
   - blog.md
 style: dark
 listen_for_clients_preferred_style: true
 disable_google_fonts: true
-footer: '© right-ward · <a href="https://github.com/right-ward">GitHub</a> · <a href="https://right-ward.github.io/ashen_chronicle/feed.xml">Atom feed</a>'
+footer: '© right-ward · <a href="https://github.com/right-ward">GitHub</a> · <a href="https://right-ward.github.io/projects/verdandi/feed.xml">Atom feed</a>'
 
 feed:
   posts_limit: 20
