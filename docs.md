@@ -23,16 +23,16 @@ Verdandi's current source uses **Bevy 0.20**. To use the Bevy plugin from the re
 
 <pre><code>[dependencies]
 bevy = "0.20"
-verdandi = { git = "https://github.com/right-ward/verdandi", branch = "main" }</code></pre>
+verdandi = "0.5"</code></pre>
 
-The <code>bevy-plugin</code> feature is enabled by default. For a release build, pin the Git dependency to a reviewed commit or tag instead of relying indefinitely on a moving branch.
+The <code>bevy-plugin</code> feature is enabled by default. This uses the published Verdandi crate from crates.io; Cargo resolves a compatible 0.5.x release.
 
 ### Core engine without the Bevy plugin
 
 If you provide your own audio output and only need the renderer, disable default features:
 
 <pre><code>[dependencies]
-verdandi = { git = "https://github.com/right-ward/verdandi", branch = "main", default-features = false }</code></pre>
+verdandi = { version = "0.5", default-features = false }</code></pre>
 
 This leaves the engine-agnostic composition and synthesis code available without pulling in Verdandi's optional Bevy audio integration.
 
