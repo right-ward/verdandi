@@ -24,7 +24,23 @@ The current procedural voices remain the baseline and fallback while the sample-
 
 ### M1 — Evaluate sample sources and licenses
 
-Status: **Not started**
+Status: **In progress**
+
+#### Interim inventory (2026-10-15)
+
+The locally inspected directory tree lists five downloaded libraries, approximately 442 MB extracted in total. This inventory is not an audio audition and does not establish permission to redistribute every pack.
+
+| Library | Approx. extracted size | Format and coverage | Interim disposition |
+|---|---:|---|---|
+| 272 Merry Orks | 46 MB | WAV samples and SFZ mappings; phonemes, vocalizations, and spoken/shouted phrases | Potential CC0 candidate for aggressive vocal accents or stingers, not a sustained cinematic choir. Karoryfer's current free-library page says its free sample libraries are CC0; verify the archive's bundled `LICENSE` and source version. [Source](https://shop.karoryfer.com/pages/free-samples) |
+| Dave Choir | 85 MB | WAV samples with an SFZ patch; sustained “ah”/“oh” choir, limited baritone range | Audition locally only for now. Decent Samples' [EULA](https://www.decentsamples.com/decent-samples-end-user-license-agreement/) permits use in music/video compositions but prohibits redistributing samples or libraries themselves without written permission. Do not include these sample files in a Verdandi asset pack without permission. |
+| FreePats Electric Guitar FSBS Clean | 129 MB | SFZ mapping with FLAC samples; clean, processed electric guitar | Strong redistributable candidate: the [source repository](https://github.com/freepats/electric-guitar-FSBS-clean) explicitly identifies CC0-1.0 and version 2026-08-07. |
+| Karoryfer Emilyguitar | 126 MB | WAV multisamples and six SFZ mappings, including clean/basic, chord, and fake-unison mappings | Strong electric-guitar candidate. The [official release](https://github.com/sfzinstruments/karoryfer.emilyguitar/releases) identifies v1.001 as CC0-1.0; still verify the exact downloaded archive's bundled `LICENSE`. This is an electric guitar recorded direct, not an acoustic guitar. |
+| Lewis E. Pyle Violin Lite | 57 MB | WAV multisamples and SFZ mapping; sustained violin with natural bowing, one articulation | Useful local audition candidate, but do not redistribute the sample files without written permission under the [Decent Samples EULA](https://www.decentsamples.com/decent-samples-end-user-license-agreement/). The EULA applies to the hosted library; “free” does not mean the raw samples are redistributable. |
+
+The downloaded set currently has no acoustic-guitar library. A small next candidate is [FreePats Spanish Classical Guitar](https://freepats.zenvoid.org/Guitar/acoustic-guitar.html): CC0-1.0, SFZ/FLAC around 4.5 MiB, or SFZ/WAV around 6.9 MiB (19 MiB extracted). Its maintainers note that recording conditions were not ideal and noise-reduction filters were applied, so it must be judged by listening before acceptance.
+
+**Licensing rule:** absence of a visible restriction, or availability at no cost, is not sufficient evidence for sample redistribution. Record the exact archive/release and its included license; where terms prohibit redistribution, use it only for private evaluation unless written permission is obtained. No downloaded audio assets have been added to the repository.
 
 Find and audition candidate acoustic-guitar and violin/ensemble sample sets. Initial candidates discussed include Karoryfer Emilyguitar and the Versilian Community Sample Library (VCSL); these are leads to verify, not pre-approved dependencies.
 
@@ -32,6 +48,8 @@ Tasks:
 - [ ] Verify the exact source release, instrument coverage, format, sample rate, bit depth, and quality.
 - [ ] Listen to actual samples and compare low, middle, and high registers, attacks, releases, and velocity response.
 - [ ] Confirm the license for the exact files selected, including redistribution inside a separately distributed asset pack and use by downstream games.
+- [ ] Compare audible results for the two electric-guitar candidates and local-only auditions of Dave Choir and Lewis E. Pyle Violin; keep license-restricted assets out of any distributable pack unless permission is obtained.
+- [ ] Add and audition a small, redistributable acoustic-guitar candidate, starting with FreePats Spanish Classical Guitar.
 - [ ] Record source URL, release/version, license text or identifier, attribution requirements, modifications, and checksums for every selected asset.
 - [ ] Estimate compressed and uncompressed footprint and identify any unsuitable, noisy, incomplete, or inconsistent material.
 
@@ -149,6 +167,8 @@ Status: **Not started**
 - **Direction changed:** sample-free is no longer a requirement. Use samples, synthesis, or a hybrid based on the best result for each instrument.
 - **Architecture principle:** retain Verdandi's existing composition/sequencing layer and add instrument playback behind it where practical.
 - **Initial instrument order:** acoustic guitar first, violin/bowed strings second.
-- **Initial candidate sources:** Karoryfer Emilyguitar and VCSL are evaluation candidates only; exact releases and licenses must be verified before inclusion.
+- **Sample-source interim findings (2026-10-15):** Emilyguitar and FreePats FSBS Clean Electric Guitar are promising CC0 electric-guitar candidates, subject to verification of the downloaded license files and listening tests. The downloaded inventory has no acoustic guitar; FreePats Spanish Classical Guitar is the next small CC0 candidate to audition. VCSL was not downloaded because its multi-gigabyte archive is too large for the initial selection.
+- **License restriction discovered:** the Decent Samples EULA allows use of Dave Choir and Lewis E. Pyle Violin in music/video compositions but prohibits redistribution of their samples/library without written permission. Treat them as local audition references only unless permission is obtained.
+- **License rule:** a free download or lack of a visible restriction is not enough; require an explicit license for redistribution or written permission. No sample assets are committed.
 - **Distribution principle:** avoid forcing a large sample library into the core crate; prefer an explicit optional/separately versioned asset distribution if warranted.
 - **Non-goal for the first pass:** building a complete orchestral sampler or replacing every procedural voice at once.
