@@ -21,21 +21,45 @@ const FRAMES_PER_CHUNK: usize = 4096;
 fn main() {
     if let Err(error) = run() {
         eprintln!("sfz_audition: {error}");
-        eprintln!("Usage: sfz_audition <patch.sfz> <output.wav> [seed] [first-midi-note] [last-midi-note]");
+        eprintln!("Usage: sfz_audition <patch.sfz> <output.wav> [seed] [first-midi-note] [last-midi-note] [--sample-root DIR]");
         std::process::exit(2);
     }
 }
 
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().skip(1).collect();
-    if !(2..=5).contains(&args.len()) {
-        return Err("expected an SFZ patch, output WAV, and optional seed and MIDI note bounds".into());
+    if args.len() < 2 {
+        return Err("expected an SFZ patch and output WAV".into());
     }
 
-    let patch = Path::new(&args[0]);
-    let output = Path::new(&args[1]);
-    let seed = parse_optional(&args, 2, 1u64, "seed")?;
-    let instrument = Arc::new(SfzInstrument::load(patch)?);
+    let mut positional = args[..2].to_vec();
+    let mut sample_root: Option<String> = None;
+    let mut index = 2;
+    while index < args.len() {
+        if args[index] == "--sample-root" {
+            if sample_root.is_some() {
+                return Err("--sample-root may only be specified once".into());
+            }
+            let root = args.get(index + 1).ok_or("--sample-root requires a directory")?;
+            sample_root = Some(root.clone());
+            index += 2;
+        } else {
+            positional.push(args[index].clone());
+            index += 1;
+        }
+    }
+    if positional.len() > 5 {
+        return Err("expected at most seed, first MIDI note, and last MIDI note".into());
+    }
+
+    let patch = Path::new(&positional[0]);
+    let output = Path::new(&positional[1]);
+    let seed = parse_optional(&positional, 2, 1u64, "seed")?;
+    let instrument = if let Some(sample_root) = sample_root {
+        SfzInstrument::load_with_sample_root(patch, sample_root)?
+    } else {
+        SfzInstrument::load(patch)?
+    };
     if !instrument.unsupported_opcodes().is_empty() {
         eprintln!(
             "Warning: these SFZ opcodes/sections are not implemented and are ignored: {}",
@@ -45,8 +69,8 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let inferred_first = instrument.regions().iter().map(|region| region.low_key).min().unwrap_or(0);
     let inferred_last = instrument.regions().iter().map(|region| region.high_key).max().unwrap_or(127);
-    let first_note = parse_optional(&args, 3, inferred_first, "first MIDI note")?;
-    let last_note = parse_optional(&args, 4, inferred_last, "last MIDI note")?;
+    let first_note = parse_optional(&positional, 3, inferred_first, "first MIDI note")?;
+    let last_note = parse_optional(&positional, 4, inferred_last, "last MIDI note")?;
     if first_note > 127 || last_note > 127 || first_note > last_note {
         return Err("MIDI note bounds must satisfy 0 <= first <= last <= 127".into());
     }
