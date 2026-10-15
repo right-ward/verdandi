@@ -381,10 +381,29 @@ impl SfzInstrument {
     /// before the instrument is attached to an audio engine.
     pub fn load(path: impl AsRef<Path>) -> Result<Self, SfzError> {
         let path = path.as_ref();
-        let text = fs::read_to_string(path).map_err(|error| SfzError::at_path(path, format!("could not read SFZ text: {error}")))?;
+        let patch_dir = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        Self::load_with_sample_root(path, patch_dir)
+    }
+
+    /// Load a committed or external SFZ mapping while resolving referenced samples against
+    /// an explicit library root. The mapping's default_path, when present, is appended to
+    /// this root. This is useful when mapping text and sample assets are stored separately.
+    pub fn load_with_sample_root(
+        path: impl AsRef<Path>,
+        sample_root: impl AsRef<Path>,
+    ) -> Result<Self, SfzError> {
+        let path = path.as_ref();
+        let text = fs::read_to_string(path)
+            .map_err(|error| SfzError::at_path(path, format!("could not read SFZ text: {error}")))?;
         let definition = parse_sfz(&text).map_err(|error| error.with_path(path))?;
-        let patch_dir = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
-        let sample_root = definition.default_path().map(|default| patch_dir.join(default)).unwrap_or_else(|| patch_dir.to_path_buf());
+        let sample_root = sample_root.as_ref();
+        let sample_root = definition
+            .default_path()
+            .map(|default| sample_root.join(default))
+            .unwrap_or_else(|| sample_root.to_path_buf());
 
         let mut samples = Vec::new();
         let mut paths_to_sample = HashMap::<PathBuf, usize>::new();
