@@ -1,6 +1,6 @@
 # verdandi
 
-Seed-driven, layered procedural music for games. Verdandi has four style presets, with every sound synthesized at runtime and no prerecorded audio assets required. The same preset and seed produce the same evolving track.
+Seed-driven, layered music for games with deterministic composition. Verdandi has four style presets; by default, voices are synthesized at runtime and no prerecorded audio assets are required. It can also load user-provided SFZ instruments for more realistic recorded timbres. Sample files remain external to the crate. The same seed and configuration produce the same musical events, with deterministic SFZ region selection for the same note sequence.
 
 Presets change musical composition as well as timbre:
 
@@ -64,6 +64,54 @@ cargo run --release --no-default-features --example render_wav -- 1234 classical
 cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-lead.wav standard lead
 cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-arp.wav standard arp
 ```
+
+## SFZ sample instruments
+
+Verdandi includes its own SFZ parser and WAV sample player. No extra backend crate or sample download is required for procedural-only use. To use recorded instruments, install a sample library yourself and load its SFZ patch before creating the engine. The patch must point to the corresponding sample files; paths are resolved relative to the patch and its optional SFZ default_path.
+
+The first implementation supports mono/stereo RIFF/WAVE samples encoded as PCM 8/16/24/32-bit or IEEE float 32/64-bit. FLAC and other sample codecs are not supported yet. The parser reports opcodes or SFZ sections it does not implement through SfzInstrument::unsupported_opcodes(). Unsupported opcodes are currently ignored, so check this list before relying on patches with advanced behaviour. The committed files under samples/ are small mapping fixtures, not complete instrument libraries: their referenced audio samples are intentionally not included.
+
+Assign a preloaded instrument to any composition layer. If no sample region matches a note, Verdandi uses the existing procedural voice for that event.
+
+~~~rust
+use std::sync::Arc;
+use verdandi::prelude::*;
+
+fn configure_sampled_music() -> Result<MusicConfig, SfzError> {
+    // This mapping text is committed under samples/, while the large audio library stays local.
+    // The explicit root resolves sample=samples/... paths into your downloaded library.
+    let guitar = Arc::new(SfzInstrument::load_with_sample_root(
+        "samples/SpanishClassicalGuitar-20190618.sfz",
+        "/path/to/SpanishClassicalGuitar-SFZ",
+    )?);
+
+    if !guitar.unsupported_opcodes().is_empty() {
+        eprintln!("SFZ features not implemented: {:?}", guitar.unsupported_opcodes());
+    }
+
+    let mut config = MusicConfig::default();
+    config.seed = 1234;
+    config.preset = MusicPreset::ClassicalAmbient;
+    config.instruments.set_sfz(Layer::Arp, guitar);
+    Ok(config)
+}
+~~~
+
+InstrumentConfig is part of MusicConfig, so the same setup works with the engine-agnostic renderer and the Bevy plugin. Sample loading and decoding happen before engine construction; the render callback performs no file access or decoding.
+
+To audition an SFZ library directly and render a WAV without Bevy or an audio device:
+
+~~~sh
+cargo run --release --no-default-features --example sfz_audition -- /path/to/library/instrument.sfz guitar-audition.wav
+~~~
+
+The audition renderer accepts optional seed and MIDI note bounds after the output filename. When using a committed mapping whose audio samples live in a separate local library directory, pass `--sample-root`:
+
+~~~sh
+cargo run --release --no-default-features --example sfz_audition -- samples/SpanishClassicalGuitar-20190618.sfz guitar-audition.wav --sample-root /path/to/SpanishClassicalGuitar-SFZ
+~~~
+
+The sample root is the directory containing the library's `samples/` directory. The mapping's SFZ `default_path`, if present, is applied beneath that root.
 
 ## Use it in your game
 
