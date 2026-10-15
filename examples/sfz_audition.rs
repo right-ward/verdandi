@@ -57,11 +57,11 @@ fn run() -> Result<(), Box<dyn Error>> {
     let patch = Path::new(&positional[0]);
     let output = Path::new(&positional[1]);
     let seed = parse_optional(&positional, 2, 1u64, "seed")?;
-    let instrument = if let Some(sample_root) = sample_root {
+    let instrument = Arc::new(if let Some(sample_root) = sample_root {
         SfzInstrument::load_with_sample_root(patch, sample_root)?
     } else {
         SfzInstrument::load(patch)?
-    };
+    });
     if !instrument.unsupported_opcodes().is_empty() {
         eprintln!(
             "Warning: these SFZ opcodes/sections are not implemented and are ignored: {}",
