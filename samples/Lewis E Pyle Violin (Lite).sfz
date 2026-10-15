@@ -1,0 +1,30 @@
+
+<group>
+volume=12
+ampeg_attack=0.010 
+ampeg_decay=0.000 
+ampeg_sustain=100.00 
+ampeg_release=1.000
+
+<region> sample=Samples/LPV_SUS_55_1.wav key=55 
+<region> sample=Samples/LPV_SUS_57_1.wav key=57 lokey=56 
+<region> sample=Samples/LPV_SUS_59_1.wav key=59 lokey=58
+<region> sample=Samples/LPV_SUS_60_1.wav key=60
+<region> sample=Samples/LPV_SUS_62_1.wav key=62 lokey=61
+<region> sample=Samples/LPV_SUS_64_1.wav key=64 lokey=63
+<region> sample=Samples/LPV_SUS_66_1.wav key=66 lokey=65
+<region> sample=Samples/LPV_SUS_67_1.wav key=67
+<region> sample=Samples/LPV_SUS_69_1.wav key=69 lokey=68
+<region> sample=Samples/LPV_SUS_71_1.wav key=71 lokey=70
+<region> sample=Samples/LPV_SUS_72_1.wav key=72
+<region> sample=Samples/LPV_SUS_74_1.wav key=74 lokey=73
+<region> sample=Samples/LPV_SUS_76_1.wav key=76 lokey=75
+<region> sample=Samples/LPV_SUS_78_1.wav key=78 lokey=77
+<region> sample=Samples/LPV_SUS_79_1.wav key=79
+<region> sample=Samples/LPV_SUS_81_1.wav key=81 lokey=80
+<region> sample=Samples/LPV_SUS_83_1.wav key=83 lokey=82
+<region> sample=Samples/LPV_SUS_84_1.wav key=84
+<region> sample=Samples/LPV_SUS_85_1.wav key=85
+<region> sample=Samples/LPV_SUS_87_1.wav key=87 lokey=86
+<region> sample=Samples/LPV_SUS_89_1.wav key=89 lokey=88
+<region> sample=Samples/LPV_SUS_91_1.wav key=91 lokey=90

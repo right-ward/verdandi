@@ -1,0 +1,61 @@
+/////////////////////////////////////////////////////////////////////////////
+// Dave Choir by David Hilowitz
+
+<control>
+
+<global>
+loop_mode=loop_continuous 
+amp_veltrack=70
+ampeg_attack=0.034 
+ampeg_decay=0.5 
+ampeg_release=0.7 
+
+<group> group_label=oh
+
+<region> sample=Samples\DC_f_oh-46.wav key=46  pitch_keycenter=46 volume=-3.0 
+<region> sample=Samples\DC_f_oh-47.wav key=47  pitch_keycenter=47 volume=-3.0 
+<region> sample=Samples\DC_f_oh-48.wav key=48  pitch_keycenter=48 
+<region> sample=Samples\DC_f_oh-49.wav key=49  pitch_keycenter=49 volume=-3.0 
+<region> sample=Samples\DC_f_oh-50.wav key=50  pitch_keycenter=50 volume=-3.0 
+<region> sample=Samples\DC_f_oh-51.wav key=51  pitch_keycenter=51 volume=-3.0 
+<region> sample=Samples\DC_f_oh-52.wav key=52  pitch_keycenter=52 volume=-3.0 
+<region> sample=Samples\DC_f_oh-53.wav key=53  tune=41 pitch_keycenter=53 volume=-3.0 
+<region> sample=Samples\DC_f_oh-54.wav key=54  tune=15 pitch_keycenter=54 volume=-3.0 
+<region> sample=Samples\DC_f_oh-55.wav key=55  pitch_keycenter=55 volume=-3.0 
+<region> sample=Samples\DC_f_oh-56.wav key=56  pitch_keycenter=56 volume=-3.0 
+<region> sample=Samples\DC_f_oh-57.wav key=57  tune=21 pitch_keycenter=57 volume=-3.0 
+<region> sample=Samples\DC_f_oh-58.wav key=58  tune=25 pitch_keycenter=58 volume=-6 
+<region> sample=Samples\DC_f_oh-59.wav key=59  tune=25 pitch_keycenter=59 volume=-6 
+<region> sample=Samples\DC_f_oh-60.wav key=60  tune=33 pitch_keycenter=60 volume=-3.0 
+<region> sample=Samples\DC_f_oh-61.wav key=61  tune=8 pitch_keycenter=61 volume=-7.
+<region> sample=Samples\DC_f_oh-62.wav key=62  tune=25 pitch_keycenter=62 
+<region> sample=Samples\DC_f_oh-63.wav key=63  tune=12 pitch_keycenter=63 volume=-6 
+<region> sample=Samples\DC_f_oh-64.wav key=64  tune=8 pitch_keycenter=64 volume=-5 
+<region> sample=Samples\DC_f_oh-65.wav key=65  tune=40 pitch_keycenter=65 volume=-5 
+<region> sample=Samples\DC_f_oh-66.wav key=66  pitch_keycenter=66 volume=-4.2
+<region> sample=Samples\DC_f_oh-67.wav key=67  pitch_keycenter=67 volume=-3.2
+
+<group> group_label=ah
+
+<region> sample=Samples\DC_f_ah-46.wav key=46  tune=18 pitch_keycenter=46 
+<region> sample=Samples\DC_f_ah-47.wav key=47  tune=18 pitch_keycenter=47 
+<region> sample=Samples\DC_f_ah-48.wav key=48  tune=17 pitch_keycenter=48 
+<region> sample=Samples\DC_f_ah-49.wav key=49  tune=33 pitch_keycenter=49 
+<region> sample=Samples\DC_f_ah-50.wav key=50  tune=-2 pitch_keycenter=50 
+<region> sample=Samples\DC_f_ah-51.wav key=51  tune=6 pitch_keycenter=51 volume=-2.0 
+<region> sample=Samples\DC_f_ah-52.wav key=52  pitch_keycenter=52 volume=-0.999997 
+<region> sample=Samples\DC_f_ah-53.wav key=53  tune=30 pitch_keycenter=53 volume=-4.0 
+<region> sample=Samples\DC_f_ah-54.wav key=54  tune=19 pitch_keycenter=54 volume=-2.0 
+<region> sample=Samples\DC_f_ah-55.wav key=55  tune=33 pitch_keycenter=55 
+<region> sample=Samples\DC_f_ah-56.wav key=56  tune=25 pitch_keycenter=56 
+<region> sample=Samples\DC_f_ah-57.wav key=57  tune=36 pitch_keycenter=57 
+<region> sample=Samples\DC_f_ah-58.wav key=58  pitch_keycenter=58 
+<region> sample=Samples\DC_f_ah-59.wav key=59  tune=30 pitch_keycenter=59 
+<region> sample=Samples\DC_f_ah-60.wav key=60  tune=38 pitch_keycenter=60 volume=-2.0 
+<region> sample=Samples\DC_f_ah-61.wav key=61  tune=41 pitch_keycenter=61 volume=-3.0 
+<region> sample=Samples\DC_f_ah-62.wav key=62  tune=34 pitch_keycenter=62 volume=-5 
+<region> sample=Samples\DC_f_ah-63.wav key=63  tune=31 pitch_keycenter=63 volume=-3.0 
+<region> sample=Samples\DC_f_ah-64.wav key=64  tune=28 pitch_keycenter=64 volume=-3.0 
+<region> sample=Samples\DC_f_ah-65.wav key=65  pitch_keycenter=65 volume=-4.0 
+<region> sample=Samples\DC_f_ah-66.wav key=66  pitch_keycenter=66 volume=-4.0 
+<region> sample=Samples\DC_f_ah-67.wav key=67  pitch_keycenter=67 
