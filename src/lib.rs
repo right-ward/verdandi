@@ -11,6 +11,7 @@ pub mod composer;
 pub mod engine;
 pub mod preset;
 pub mod rng;
+pub mod sfz;
 pub mod synth;
 pub mod theory;
 
@@ -19,7 +20,8 @@ pub mod plugin;
 
 pub mod prelude {
     pub use crate::composer::{Layer, LayerAction, LoopPlan, NoteEvent};
-    pub use crate::engine::{Engine, MusicConfig, MusicShared, MusicStatus, MusicStinger};
+    pub use crate::engine::{Engine, InstrumentConfig, MusicConfig, MusicShared, MusicStatus, MusicStinger};
+    pub use crate::sfz::{parse_sfz, SfzDefinition, SfzError, SfzInstrument, SfzLoopMode, SfzRegion, SfzSampler};
     pub use crate::preset::{MusicPace, MusicPreset};
     pub use crate::theory::{ScaleKind, Theme, ThemeOverrides};
 
