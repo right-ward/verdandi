@@ -87,7 +87,8 @@ Implement the first sampled instrument as a small, isolated vertical slice. Do n
 
 Tasks:
 - [ ] Map available recordings to pitch/velocity zones and choose sensible fallback behavior for uncovered ranges.
-- [x] Implement basic note-on/tail handling, gain, interpolation, and deterministic region selection.\n- [ ] Validate note-off/tail and sustain-loop behavior by listening to actual library samples.
+- [x] Implement basic note-on/tail handling, gain, interpolation, and deterministic region selection.
+- [ ] Validate note-off/tail and sustain-loop behavior by listening to actual library samples.
 - [ ] Produce isolated WAV renders across low, middle, and high registers and several velocities.
 - [ ] Compare sample playback against the existing procedural Pluck at matched pitch and loudness.
 - [ ] Listen for unnatural repetition, pitch-shifting artifacts, clicks, abrupt tails, noise, and inconsistent loudness.
@@ -130,11 +131,13 @@ Tasks:
 
 Status: **In progress**
 
-- [x] Add tests for mapping parsing, deterministic sample selection, and finite rendered output.\n- [ ] Expand tests for sample boundaries, note-off/release, voice exhaustion, and broader SFZ fixtures.
+- [x] Add tests for mapping parsing, deterministic sample selection, and finite rendered output.
+- [ ] Expand tests for sample boundaries, note-off/release, voice exhaustion, and broader SFZ fixtures.
 - [ ] Confirm realtime rendering does not perform file access, decoding, locking, or avoidable allocation.
 - [ ] Check preset transitions, stingers, pause/resume, and concurrent notes with sampled voices.
 - [ ] Verify offline WAV rendering works with both procedural-only and sample-enabled configurations.
-- [x] Document user-supplied SFZ setup, supported formats, opcode limitations, and procedural fallback.\n- [ ] Document memory/resource usage and validate the rendered output against the real libraries.
+- [x] Document user-supplied SFZ setup, supported formats, opcode limitations, and procedural fallback.
+- [ ] Document memory/resource usage and validate the rendered output against the real libraries.
 - [ ] Update examples so individual instruments and musical layers can be rendered for listening tests.
 - [ ] Update the crate version according to SemVer if public API, dependency, or distribution changes warrant it.
 - [ ] Open focused PRs and record validation results; do not mark tests as passed unless they were actually run.
