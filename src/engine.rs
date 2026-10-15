@@ -582,9 +582,13 @@ impl Engine {
             for ev in &self.plan.layers[layer.index()] {
                 if ev.step == self.step {
                     let gate = ev.len as f32 * step_secs * 0.95;
-                    let sampled = self.sfz_instruments.iter()
+                    let sampled = self
+                        .sfz_instruments
+                        .iter()
                         .find(|(timbre, _)| *timbre == ev.timbre)
-                        .and_then(|(_, instrument)| instrument.note_on(ev.note, ev.vel, gate, self.sample_rate));
+                        .and_then(|(_, instrument)| {
+                            instrument.note_on(ev.note, ev.vel, gate, self.sample_rate)
+                        });
                     if let Some(voice) = sampled {
                         if self.sfz_voices.len() == self.sfz_voices.capacity() {
                             self.sfz_voices.remove(0);
