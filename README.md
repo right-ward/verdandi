@@ -78,10 +78,11 @@ use std::sync::Arc;
 use verdandi::prelude::*;
 
 fn configure_sampled_music() -> Result<MusicConfig, SfzError> {
-    // Use the SFZ file inside your own extracted/downloaded library so its relative
-    // sample paths resolve. Loading reads and prepares every referenced WAV up front.
-    let guitar = Arc::new(SfzInstrument::load(
-        "/path/to/SpanishClassicalGuitar/SpanishClassicalGuitar.sfz",
+    // This mapping text is committed under samples/, while the large audio library stays local.
+    // The explicit root resolves sample=samples/... paths into your downloaded library.
+    let guitar = Arc::new(SfzInstrument::load_with_sample_root(
+        "samples/SpanishClassicalGuitar-20190618.sfz",
+        "/path/to/SpanishClassicalGuitar-SFZ",
     )?);
 
     if !guitar.unsupported_opcodes().is_empty() {
@@ -98,13 +99,19 @@ fn configure_sampled_music() -> Result<MusicConfig, SfzError> {
 
 InstrumentConfig is part of MusicConfig, so the same setup works with the engine-agnostic renderer and the Bevy plugin. Sample loading and decoding happen before engine construction; the render callback performs no file access or decoding.
 
-To audition a patch directly and render a WAV without Bevy or an audio device:
+To audition an SFZ library directly and render a WAV without Bevy or an audio device:
 
 ~~~sh
-cargo run --release --no-default-features --example sfz_audition -- /path/to/instrument.sfz guitar-audition.wav
+cargo run --release --no-default-features --example sfz_audition -- /path/to/library/instrument.sfz guitar-audition.wav
 ~~~
 
-The audition renderer accepts optional seed and MIDI note bounds after the output filename.
+The audition renderer accepts optional seed and MIDI note bounds after the output filename. When using a committed mapping whose audio samples live in a separate local library directory, pass `--sample-root`:
+
+~~~sh
+cargo run --release --no-default-features --example sfz_audition -- samples/SpanishClassicalGuitar-20190618.sfz guitar-audition.wav --sample-root /path/to/SpanishClassicalGuitar-SFZ
+~~~
+
+The sample root is the directory containing the library's `samples/` directory. The mapping's SFZ `default_path`, if present, is applied beneath that root.
 
 ## Use it in your game
 
