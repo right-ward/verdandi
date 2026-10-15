@@ -728,8 +728,8 @@ impl Engine {
             sampled_right += sample;
         }
         self.sfz_voices.retain(|(voice, _)| !voice.is_finished());
-        outgoing.0 = (outgoing.0 + sampled_left).tanh();
-        outgoing.1 = (outgoing.1 + sampled_right).tanh();
+        outgoing.0 += sampled_left;
+        outgoing.1 += sampled_right;
         let stinger = self.render_stinger();
         outgoing.0 = (outgoing.0 + stinger.0 * 0.55).tanh();
         outgoing.1 = (outgoing.1 + stinger.1 * 0.55).tanh();
