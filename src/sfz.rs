@@ -213,8 +213,10 @@ fn make_region(global: &[(String, String)], group: &[(String, String)], ops: &[(
         .or(key).unwrap_or((low_key + high_key) / 2);
     let low_velocity = number(val("lovel"), 0u8, "lovel")?;
     let high_velocity = number(val("hivel"), 127u8, "hivel")?;
-    if low_key > high_key || low_velocity > high_velocity {
-        return Err(SfzError::Invalid(format!("{}:{}: inverted key or velocity range", sfz.display(), line)));
+    if low_key > high_key || low_velocity > high_velocity
+        || high_key > 127 || root_key > 127 || high_velocity > 127
+    {
+        return Err(SfzError::Invalid(format!("{}:{}: invalid key or velocity range (MIDI values must be 0..=127)", sfz.display(), line)));
     }
     let volume_db = number(val("volume"), 0.0f32, "volume")?;
     let release_seconds = number(val("ampeg_release"), 0.0f32, "ampeg_release")?.clamp(0.0, 30.0);
