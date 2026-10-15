@@ -44,7 +44,7 @@ Status: **In progress**
 
 **Decision:** implement the SFZ parser, region selection, sample decoding, and playback voice engine inside Verdandi. Do not add an external sampler dependency or a separate `verdandi-sfz` crate. Keep procedural synthesis as the default and fallback.
 
-The first vertical slice now exists in `src/sfz.rs`: it loads SFZ global/group/region settings, resolves sample paths, decodes supported WAV formats, selects regions by key and velocity, pitch-shifts by resampling, applies gain/release, and renders a sample voice. The `sfz_render_wav` example creates offline note-range audition files. This is not yet wired into the composition engine and is not full SFZ compatibility.
+The first vertical slice now exists in `src/sfz.rs`: it loads SFZ global/group/region settings, resolves sample paths, decodes supported WAV formats, selects regions by key and velocity, pitch-shifts by resampling, applies gain/release, and renders a sample voice. The `sfz_render_wav` example creates offline note-range audition files. This is wired into the composition engine through optional timbre-to-instrument assignments, with procedural fallback for unmatched notes. It is not full SFZ compatibility.
 
 Current implementation scope:
 - [x] Parse the basic opcodes required by the Spanish Classical Guitar mapping.
@@ -69,7 +69,7 @@ Sample libraries remain external to the crate. Users download a library, keep it
 Tasks:
 - [x] Keep sample audio out of the repository and published crate.
 - [x] Allow the sample root to be specified separately from the SFZ mapping location.
-- [ ] Add an engine-level instrument configuration that can select an SFZ instrument per musical role.
+- [x] Add an engine-level instrument configuration that selects an SFZ instrument per procedural timbre.
 - [ ] Define fallback behavior for missing or invalid sample instruments.
 - [ ] Document memory use, loading lifecycle, supported opcodes, and library setup.
 
