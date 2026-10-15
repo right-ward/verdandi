@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use crate::composer::{Composer, Layer, LayerAction, LoopPlan, STEPS_PER_BAR, STEPS_PER_LOOP};
 use crate::preset::{MusicPace, MusicPreset};
-use crate::synth::{Synth, Timbre};
 use crate::sfz::{SfzInstrument, SfzSampler};
+use crate::synth::{Synth, Timbre};
 use crate::theory::{ScaleKind, Theme, ThemeOverrides, NOTE_NAMES};
 
 /// A short synthesized cue for a game event.
@@ -204,7 +204,9 @@ impl InstrumentConfig {
 
 impl Default for InstrumentConfig {
     fn default() -> Self {
-        Self { sfz_by_layer: std::array::from_fn(|_| None) }
+        Self {
+            sfz_by_layer: std::array::from_fn(|_| None),
+        }
     }
 }
 
@@ -531,7 +533,11 @@ impl Engine {
         let instruments = cfg.instruments.clone();
         let sfz_samplers = std::array::from_fn(|index| {
             instruments.sfz_by_layer[index].as_ref().map(|instrument| {
-                SfzSampler::new(Arc::clone(instrument), cfg.sample_rate, instrument_seed(seed, index))
+                SfzSampler::new(
+                    Arc::clone(instrument),
+                    cfg.sample_rate,
+                    instrument_seed(seed, index),
+                )
             })
         });
         let engine = Self {
