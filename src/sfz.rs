@@ -533,6 +533,7 @@ struct Voice {
     gate_frames: u64,
     release_frames: u64,
     velocity_gain: f32,
+    region_gain: f32,
 }
 
 #[derive(Debug)]
@@ -600,6 +601,7 @@ impl SfzSampler {
                 gate_frames,
                 release_frames,
                 velocity_gain,
+                region_gain: 10.0f32.powf(region.volume_db / 20.0),
             });
             triggered = true;
         }
@@ -647,7 +649,7 @@ impl SfzSampler {
                     values[channel] = first + (second - first) * fraction;
                 }
                 let env = envelope(region, voice.age, voice.gate_frames, voice.release_frames, self.sample_rate);
-                let gain = 10.0f32.powf(region.volume_db / 20.0) * voice.velocity_gain * env * self.gain;
+                let gain = voice.region_gain * voice.velocity_gain * env * self.gain;
                 left += values[0] * gain;
                 right += values[1] * gain;
                 voice.position += voice.increment;
@@ -665,7 +667,7 @@ impl SfzSampler {
             if region.loop_mode == SfzLoopMode::Sustain && !release_finished && !natural_end { return true; }
             !natural_end && !release_finished
         });
-        (left * self.gain.clamp(0.0, 4.0).min(1.0), right * self.gain.clamp(0.0, 4.0).min(1.0))
+        (left, right)
     }
 
     fn next_random(&mut self) -> f32 {
