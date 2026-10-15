@@ -1,6 +1,6 @@
 //! Render a note-by-note audition WAV from a user-provided SFZ library.
 //!
-//! cargo run --release --no-default-features --example sfz_render_wav -- -- <mapping.sfz> <sample-root> <output.wav> [first-midi] [last-midi]
+//! cargo run --release --no-default-features --example sfz_render_wav -- <mapping.sfz> <sample-root> <output.wav> [first-midi] [last-midi]
 //!
 //! The sample root is the directory against which paths inside the SFZ are resolved.
 
