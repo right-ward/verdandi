@@ -67,7 +67,7 @@ cargo run --release --no-default-features --example render_wav -- 1234 classical
 
 ## First-party SFZ sample audition
 
-Verdandi includes an in-progress native SFZ loader and sample voice renderer. It currently supports the basic mapping and one-shot playback features needed by the Spanish Classical Guitar mapping, plus WAV PCM (8/16/24/32-bit) and IEEE float (32/64-bit) decoding. It is not yet a complete SFZ implementation and is not yet routed into the composition engine.
+Verdandi includes an in-progress native SFZ loader and sample voice renderer. It currently supports the basic mapping and one-shot playback features needed by the Spanish Classical Guitar mapping, plus WAV PCM (8/16/24/32-bit) and IEEE float (32/64-bit) decoding. Loaded instruments can be assigned to a procedural timbre in `MusicConfig`; matching notes use the sample voice and uncovered notes fall back to procedural synthesis. This is not yet a complete SFZ implementation.
 
 Keep sample libraries on your own device. The mapping's `sample=` paths are resolved against the sample-root argument, so the SFZ text can live separately from the original library directory. No samples are included in the crate.
 
@@ -79,7 +79,7 @@ cargo run --release --no-default-features --example sfz_render_wav -- samples/Sp
 
 Replace `/path/to/SpanishClassicalGuitar-SFZ` with the directory containing the library's `samples/` subdirectory. You can optionally pass the first and last MIDI notes after the output path. The renderer reports unsupported opcodes and errors for missing samples rather than silently substituting an unrelated sound.
 
-Current support includes key and velocity ranges, root key, volume, release time, and basic loop points. Envelopes beyond release, velocity curves, random/round-robin selection, filters, modulation, stereo preservation, and many SFZ extensions are not implemented yet. The procedural engine remains unchanged and fully usable without SFZ files.
+Current support includes key and velocity ranges, root key, volume, release time, and basic loop points. Envelopes beyond release, velocity curves, random/round-robin selection, filters, modulation, stereo preservation, and many SFZ extensions are not implemented yet. The procedural engine remains fully usable without SFZ files.
 
 ## Use it in your game
 
