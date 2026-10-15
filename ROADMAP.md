@@ -4,7 +4,7 @@ This document is the durable plan for improving Verdandi's instrument realism an
 
 ## Goal and design direction
 
-Prioritize the best musical result, not a sample-free implementation. Verdandi may combine recorded samples, procedural synthesis, and hybrid techniques. Choose the method per instrument based on audible quality, runtime requirements, licensing, portability, and maintenance cost.
+Prioritize the best musical result, not a sample-free implementation. Verdandi combines user-supplied recorded samples and procedural synthesis where each is useful. The SFZ parser and sampler are first-party code in this repository; audio libraries remain external to the crate and are never fetched automatically.
 
 Keep the existing deterministic composition engine and layered, game-oriented behavior. The composer decides what notes to play and when; instrument backends decide how those notes sound. Preserve existing sounds unless a replacement or addition is demonstrably better.
 
@@ -14,94 +14,80 @@ Keep the existing deterministic composition engine and layered, game-oriented be
 - [x] Runtime preset/pace transitions.
 - [x] Built-in deterministic musical stingers.
 - [x] Improved procedural plucked-string and bowed-string voices.
-- [ ] Sample playback or bundled instrument assets: not implemented.
-- [ ] Sampled acoustic guitar and violin: not implemented.
-- [ ] Sample asset distribution and provenance process: not implemented.
+- [x] First-party SFZ parsing, WAV sample loading, seeded region selection, polyphonic playback, and layer routing are implemented as an initial compatibility slice.
+- [x] The procedural backend remains the default and fallback when a sampled instrument is absent or has no matching region.
+- [ ] Real-instrument playback still needs broader SFZ compatibility, audition validation, and tuning against the real libraries.
 
 The current procedural voices remain the baseline and fallback while the sample-based path is evaluated. Contemplative's established sound and the distorted Guitar voice should not be changed without an audible reason.
 
 ## Milestones
 
-### M1 — Evaluate sample sources and licenses
+### M1 — Inspect sample mappings and audition candidates
 
 Status: **In progress**
 
-#### Interim inventory (2026-10-15)
+The user has auditioned the available sample libraries except MerryOrks and FreePats Electric Guitar FSBS Clean. The existing Python audition helper reports a generic error for those mappings; that does not establish that the libraries are invalid. It is a limitation of the helper, which is not a complete SFZ player.
 
-The locally inspected directory tree lists five downloaded libraries, approximately 442 MB extracted in total. This inventory is not an audio audition and does not establish permission to redistribute every pack.
-
-| Library | Approx. extracted size | Format and coverage | Interim disposition |
-|---|---:|---|---|
-| 272 Merry Orks | 46 MB | WAV samples and SFZ mappings; phonemes, vocalizations, and spoken/shouted phrases | Potential CC0 candidate for aggressive vocal accents or stingers, not a sustained cinematic choir. Karoryfer's current free-library page says its free sample libraries are CC0; verify the archive's bundled `LICENSE` and source version. [Source](https://shop.karoryfer.com/pages/free-samples) |
-| Dave Choir | 85 MB | WAV samples with an SFZ patch; sustained “ah”/“oh” choir, limited baritone range | Audition locally only for now. Decent Samples' [EULA](https://www.decentsamples.com/decent-samples-end-user-license-agreement/) permits use in music/video compositions but prohibits redistributing samples or libraries themselves without written permission. Do not include these sample files in a Verdandi asset pack without permission. |
-| FreePats Electric Guitar FSBS Clean | 129 MB | SFZ mapping with FLAC samples; clean, processed electric guitar | Strong redistributable candidate: the [source repository](https://github.com/freepats/electric-guitar-FSBS-clean) explicitly identifies CC0-1.0 and version 2026-08-07. |
-| Karoryfer Emilyguitar | 126 MB | WAV multisamples and six SFZ mappings, including clean/basic, chord, and fake-unison mappings | Strong electric-guitar candidate. The [official release](https://github.com/sfzinstruments/karoryfer.emilyguitar/releases) identifies v1.001 as CC0-1.0; still verify the exact downloaded archive's bundled `LICENSE`. This is an electric guitar recorded direct, not an acoustic guitar. |
-| Lewis E. Pyle Violin Lite | 57 MB | WAV multisamples and SFZ mapping; sustained violin with natural bowing, one articulation | Useful local audition candidate, but do not redistribute the sample files without written permission under the [Decent Samples EULA](https://www.decentsamples.com/decent-samples-end-user-license-agreement/). The EULA applies to the hosted library; “free” does not mean the raw samples are redistributable. |
-| FreePats Spanish Classical Guitar | 20 MB | 51 WAV notes plus an SFZ mapping, README, and `cc0.txt` | Downloaded 2026-10-15. Candidate for sampled acoustic/classical guitar. Keep the `.sfz` file alongside its `samples/` directory; use the bundled license and README as the exact provenance record. Audible quality/range are not assessed yet. |
-
-The acoustic-guitar gap is now filled with a local copy of [FreePats Spanish Classical Guitar](https://freepats.zenvoid.org/Guitar/acoustic-guitar.html), extracted to about 20 MB with 51 WAV note recordings, an SFZ mapping, README, and `cc0.txt`. Keep the `.sfz` file next to the `samples/` directory so its relative sample paths still resolve. The library is a CC0 candidate, but inspect the included license/readme and audition the actual sound before accepting it; the maintainers note that recording conditions were not ideal and noise-reduction filters were applied. No sample audio is committed to the repository.
-
-**Licensing rule:** absence of a visible restriction, or availability at no cost, is not sufficient evidence for sample redistribution. Record the exact archive/release and its included license; where terms prohibit redistribution, use it only for private evaluation unless written permission is obtained. No downloaded audio assets have been added to the repository.
-
-Find and audition candidate acoustic-guitar and violin/ensemble sample sets. Initial candidates discussed include Karoryfer Emilyguitar and the Versilian Community Sample Library (VCSL); these are leads to verify, not pre-approved dependencies.
+The small SFZ mapping text files under `samples/` are committed as parser fixtures. Their referenced audio remains on the user's device and is not part of this repository.
 
 Tasks:
-- [ ] Verify the exact source release, instrument coverage, format, sample rate, bit depth, and quality.
-- [ ] Listen to actual samples and compare low, middle, and high registers, attacks, releases, and velocity response.
-- [ ] Confirm the license for the exact files selected, including redistribution inside a separately distributed asset pack and use by downstream games.
-- [ ] Compare audible results for the two electric-guitar candidates and local-only auditions of Dave Choir and Lewis E. Pyle Violin; keep license-restricted assets out of any distributable pack unless permission is obtained.
-- [x] Obtain a small acoustic-guitar candidate: FreePats Spanish Classical Guitar (20 MB extracted, 51 WAV files, SFZ, README, and `cc0.txt`).
-- [ ] Inspect the bundled license/readme and audition the acoustic-guitar candidate; acquisition alone does not complete evaluation.
-- [ ] Record source URL, release/version, license text or identifier, attribution requirements, modifications, and checksums for every selected asset.
-- [ ] Estimate compressed and uncompressed footprint and identify any unsuitable, noisy, incomplete, or inconsistent material.
+- [x] Commit the small SFZ mappings as parser fixtures.
+- [x] Add a parser test that loads every committed mapping and reports unsupported features.
+- [ ] Identify the unsupported opcodes and sample formats needed by MerryOrks and Electric Guitar FSBS.
+- [ ] Render representative notes from the remaining mappings using the native audition example once the required audio formats/features are supported.
+- [ ] Record each library's useful note ranges, velocity zones, articulations, and playback limitations.
 
-**Exit criteria:** at least one viable candidate for acoustic guitar and one for violin/bowed strings, supported by listening notes and verified redistribution terms. Do not commit assets before these checks.
+**Exit criteria:** the feature requirements of the sample libraries are documented, with parser compatibility and actual sample playback clearly distinguished.
 
-### M2 — Choose the sample playback architecture
+### M2 — Implement the first-party SFZ engine
 
-Status: **Not started**
+Status: **In progress**
 
-Run a focused engineering spike before selecting a permanent backend. Compare a mature SoundFont/SFZ-capable approach with a small dedicated sampler, using the same candidate material and representative Verdandi note events.
+**Decision:** the parser, region model, sample loading, voice management, and playback engine live inside Verdandi. Do not add a third-party sampler dependency or a separate `verdandi-sfz` crate.
 
-Requirements to evaluate:
-- [ ] Pitch and velocity zones; sensible handling outside recorded ranges.
-- [ ] Round-robin or other deterministic variation where multiple takes exist.
-- [ ] Appropriate interpolation and acceptable pitch-shifting artifacts.
-- [ ] Smooth sustain loops for bowed instruments and natural release/decay.
-- [ ] Deterministic sample/round-robin selection from stable seed and event identity.
-- [ ] Multiple concurrent notes, voice stealing, note-off behavior, and tail handling.
-- [ ] No file I/O, sample decoding, locks, or avoidable allocations in the realtime render path.
-- [ ] Clear asset loading/preparation lifecycle and useful errors for missing or incompatible assets.
-- [ ] Compatibility with the existing engine, offline WAV renderer, Bevy integration, and supported Rust targets.
-- [ ] Dependency health, license, maintenance, and format/tooling trade-offs.
+Implemented:
+- [x] Public SFZ definition/region model and parser with line-aware errors and unsupported-opcode diagnostics.
+- [x] Global/group/region inheritance, quoted sample paths, key/velocity zones, tuning, volume, amplitude envelope, random-region ranges, sample/loop bounds, and one-shot/sustain/continuous loop modes.
+- [x] RIFF/WAVE PCM (8/16/24/32-bit) and IEEE float (32/64-bit) loading, mono/stereo handling, sample caching, and up-front sample-range validation.
+- [x] Bounded polyphonic sample playback with deterministic random-region selection and no file access or decoding in the render callback.
+- [x] Optional instrument mapping by musical layer, including procedural fallback for unmatched notes.
+- [x] Offline WAV audition example and parser/voice regression fixtures.
+- [x] Explicit sample-root override so a committed SFZ mapping can reference samples in a separate local library directory.
 
-**Exit criteria:** a documented backend decision backed by an isolated render and an explicit account of limitations. Prefer reuse when a maintained dependency meets the requirements; do not build a custom sampler solely for its own sake.
+Known gaps:
+- [ ] FLAC decoding is not implemented yet; the FSBS electric guitar mapping parses but references FLAC samples that cannot currently be loaded.
+- [ ] Expand opcode compatibility and improve release/loop semantics against representative instruments.
+- [ ] Validate realtime safety, polyphony/voice-stealing behavior, and deterministic results with rendered output.
+- [ ] Add or refine compatibility fixtures when previously unsupported mappings are brought into playback.
 
-### M3 — Define asset packaging and fallback behavior
+**Exit criteria:** the engine can load and audibly render selected real libraries, its limits are documented, and both the parser and voice renderer have automated coverage.
 
-Status: **Not started**
+### M3 — User-supplied samples and procedural fallback
 
-Keep large instrument libraries out of the core crate if their size or license makes bundling inappropriate. Evaluate a separately versioned asset bundle or another explicit distribution mechanism.
+Status: **Decided; validation in progress**
+
+Verdandi never bundles sample audio, downloads libraries, or manages third-party sample distribution. Users obtain their own libraries and explicitly load a patch or supply an external sample root. The committed SFZ files under `samples/` are small text fixtures only.
 
 Tasks:
-- [ ] Choose an asset layout and versioning scheme that maps cleanly to instrument presets and sample zones.
-- [ ] Keep code and optional sample assets independently consumable where practical.
-- [ ] Document how applications obtain, locate, configure, and update assets.
-- [ ] Define behavior when assets are absent, corrupt, or incompatible; retain procedural fallback where practical.
-- [ ] Keep license notices and asset provenance with the distributed assets.
-- [ ] Ensure applications can preload/decode samples before realtime playback begins.
+- [x] Keep sample audio out of the repository and published crate.
+- [x] Allow an explicit sample root when the SFZ mapping text is stored separately from its referenced samples.
+- [x] Expose sample instruments through `MusicConfig` and the same engine-agnostic and Bevy integration paths.
+- [x] Preserve procedural playback as the default and use it when a configured SFZ instrument does not match a note.
+- [ ] Document supported formats, opcode diagnostics, memory/loading costs, and setup with both a patch-local library and a separate sample root.
 
-**Exit criteria:** documented, reproducible asset packaging with license information and no runtime network or disk work on the audio render thread.
+Licensing review for recordings later used in a downstream game such as Ashen Chronicle is a separate concern; Verdandi itself does not redistribute those recordings.
+
+**Exit criteria:** users can opt into local sample libraries without changing the default dependency or asset footprint.
 
 ### M4 — Implement and audition acoustic guitar
 
-Status: **Not started**
+Status: **In progress — native playback path exists; listening acceptance pending**
 
 Implement the first sampled instrument as a small, isolated vertical slice. Do not replace the existing Pluck or distorted Guitar voice at the outset.
 
 Tasks:
 - [ ] Map available recordings to pitch/velocity zones and choose sensible fallback behavior for uncovered ranges.
-- [ ] Implement note-on, note-off/tail behavior, gain, interpolation, and deterministic take selection as required by the chosen backend.
+- [x] Implement basic note-on/tail handling, gain, interpolation, and deterministic region selection.\n- [ ] Validate note-off/tail and sustain-loop behavior by listening to actual library samples.
 - [ ] Produce isolated WAV renders across low, middle, and high registers and several velocities.
 - [ ] Compare sample playback against the existing procedural Pluck at matched pitch and loudness.
 - [ ] Listen for unnatural repetition, pitch-shifting artifacts, clicks, abrupt tails, noise, and inconsistent loudness.
@@ -127,7 +113,7 @@ Tasks:
 
 ### M6 — Integrate accepted voices into arrangements
 
-Status: **Not started**
+Status: **In progress — routing and procedural fallback exist; instrument acceptance pending**
 
 Only integrate a sampled voice after its isolated audition succeeds.
 
@@ -136,19 +122,19 @@ Tasks:
 - [ ] Compare old and new renders at matched seed, tempo, intensity, and output level.
 - [ ] Preserve Warbound's distorted guitar character and Contemplative's established character unless listening demonstrates a clear improvement.
 - [ ] Verify that layering does not cause clipping, masking, excessive CPU use, or undesirable stereo placement.
-- [ ] Keep existing procedural voices available as fallbacks or alternatives where useful.
+- [x] Keep existing procedural voices available as fallbacks for missing instruments or uncovered notes.
 
 **Exit criteria:** each integration has an audible rationale and does not regress other presets or event behavior.
 
 ### M7 — Validate, document, and release
 
-Status: **Not started**
+Status: **In progress**
 
-- [ ] Add tests for deterministic zone/take selection, sample boundaries, note-off/release, voice exhaustion, and bounded finite output.
+- [x] Add tests for mapping parsing, deterministic sample selection, and finite rendered output.\n- [ ] Expand tests for sample boundaries, note-off/release, voice exhaustion, and broader SFZ fixtures.
 - [ ] Confirm realtime rendering does not perform file access, decoding, locking, or avoidable allocation.
 - [ ] Check preset transitions, stingers, pause/resume, and concurrent notes with sampled voices.
 - [ ] Verify offline WAV rendering works with both procedural-only and sample-enabled configurations.
-- [ ] Document asset setup, supported formats, distribution, licenses, fallback behavior, and resource usage.
+- [x] Document user-supplied SFZ setup, supported formats, opcode limitations, and procedural fallback.\n- [ ] Document memory/resource usage and validate the rendered output against the real libraries.
 - [ ] Update examples so individual instruments and musical layers can be rendered for listening tests.
 - [ ] Update the crate version according to SemVer if public API, dependency, or distribution changes warrant it.
 - [ ] Open focused PRs and record validation results; do not mark tests as passed unless they were actually run.
@@ -166,11 +152,12 @@ Status: **Not started**
 
 ## Decision log
 
-- **Direction changed:** sample-free is no longer a requirement. Use samples, synthesis, or a hybrid based on the best result for each instrument.
-- **Architecture principle:** retain Verdandi's existing composition/sequencing layer and add instrument playback behind it where practical.
-- **Initial instrument order:** acoustic guitar first, violin/bowed strings second.
-- **Sample-source interim findings (2026-10-15):** Emilyguitar and FreePats FSBS Clean Electric Guitar are promising CC0 electric-guitar candidates, subject to verification of the downloaded license files and listening tests. FreePats Spanish Classical Guitar has now been downloaded as a small acoustic-guitar candidate (20 MB extracted, 51 WAV note recordings, SFZ mapping, README, and `cc0.txt`); it still needs license-file inspection and listening tests. VCSL was not downloaded because its multi-gigabyte archive is too large for the initial selection.
-- **License restriction discovered:** the Decent Samples EULA allows use of Dave Choir and Lewis E. Pyle Violin in music/video compositions but prohibits redistribution of their samples/library without written permission. Treat them as local audition references only unless permission is obtained.
-- **License rule:** a free download or lack of a visible restriction is not enough; require an explicit license for redistribution or written permission. No sample assets are committed.
-- **Distribution principle:** avoid forcing a large sample library into the core crate; prefer an explicit optional/separately versioned asset distribution if warranted.
-- **Non-goal for the first pass:** building a complete orchestral sampler or replacing every procedural voice at once.
+- **Composition and rendering are separate:** the seeded composition engine determines musical events; each layer can use a procedural voice or a sampled instrument.
+- **Both backends belong to Verdandi:** the SFZ parser, sample loader, polyphonic sampler, and procedural synthesizer live in the same crate. No separate `verdandi-sfz` repository or external sampler runtime is planned.
+- **User-managed sample libraries:** Verdandi ships only the small SFZ mapping fixtures committed under `samples/`, not their audio data. No automatic downloads or bundled sample packs.
+- **Explicit sample roots:** loading may use the patch's directory and `default_path`, or an explicit library root when the mapping text is stored separately from its audio files.
+- **Initial format limitation:** the native player currently decodes WAV only. The committed FreePats FSBS Clean Electric Guitar mapping references FLAC, so successful parsing is not evidence that this instrument is playable yet.
+- **Compatibility strategy:** support and test the subset required by real libraries, report unsupported opcodes, and expand incrementally rather than claiming full SFZ compatibility.
+- **First instrument order:** validate the Spanish Classical Guitar, then electric guitar and bowed-string mappings according to their feature and audio-format requirements.
+- **Downstream licensing:** licensing review for audio use in Ashen Chronicle or other games is outside Verdandi's sample-engine implementation milestone because Verdandi does not distribute sample recordings.
+- **Versioning:** the new public SFZ and instrument configuration API is on the 0.6.0 development line.
