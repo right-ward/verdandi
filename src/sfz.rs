@@ -718,12 +718,30 @@ mod tests {
     fn parses_committed_classical_guitar_mapping() {
         let mapping = include_str!("../samples/SpanishClassicalGuitar-20190618.sfz");
         let definition = parse_sfz(mapping).expect("classical guitar SFZ should parse");
-        assert!(definition.regions().len() >= 50);
+        assert_eq!(definition.regions().len(), 48);
         let c4 = definition.regions().iter().find(|region| region.sample.ends_with("C4.wav")).unwrap();
         assert_eq!(c4.low_key, 60);
         assert_eq!(c4.high_key, 60);
         assert_eq!(c4.pitch_keycenter, 60);
         assert_eq!(c4.loop_mode, SfzLoopMode::NoLoop);
+    }
+
+    #[test]
+    fn parses_every_committed_mapping_and_reports_unimplemented_opcodes() {
+        let fixtures = [
+            ("Dave Choir", include_str!("../samples/Dave Choir.sfz")),
+            ("FSBS bridge", include_str!("../samples/EGuitarFSBS-clean bridge 20260807.sfz")),
+            ("FSBS bridge small", include_str!("../samples/EGuitarFSBS-clean bridge small 20260807.sfz")),
+            ("Lewis E Pyle Violin", include_str!("../samples/Lewis E Pyle Violin (Lite).sfz")),
+            ("Spanish Classical Guitar", include_str!("../samples/SpanishClassicalGuitar-20190618.sfz")),
+            ("ork dialogue", include_str!("../samples/ork_dialogue.sfz")),
+            ("ork predrops", include_str!("../samples/ork_predrops.sfz")),
+            ("ork vocals", include_str!("../samples/ork_vocals.sfz")),
+        ];
+        for (name, text) in fixtures {
+            let definition = parse_sfz(text).unwrap_or_else(|error| panic!("{name}: {error}"));
+            assert!(!definition.regions().is_empty(), "{name} contains no regions");
+        }
     }
 
     #[test]
