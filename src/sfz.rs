@@ -282,7 +282,9 @@ fn apply_assignments(text: &str, line: usize, section: Section, state: &mut Pars
                 if let Some((map, _)) = state.current_region.as_mut() {
                     map.insert(key, value);
                 } else {
-                    state.unsupported.insert(format!("orphan_assignment_line_{line}"));
+                    state
+                        .unsupported
+                        .insert(format!("orphan_assignment_line_{line}"));
                 }
             }
             Section::Ignored => {}
