@@ -14,9 +14,9 @@ Keep the existing deterministic composition engine and layered, game-oriented be
 - [x] Runtime preset/pace transitions.
 - [x] Built-in deterministic musical stingers.
 - [x] Improved procedural plucked-string and bowed-string voices.
-- [ ] Sample playback or bundled instrument assets: not implemented.
-- [ ] Sampled acoustic guitar and violin: not implemented.
-- [ ] Sample asset distribution and provenance process: not implemented.
+- [x] First-party partial SFZ loading, WAV decoding, sample voices, and optional timbre routing.
+- [ ] Sampled acoustic guitar and violin: playback integration exists, but instrument auditions and musical-layer acceptance are pending.
+- [x] User-supplied sample paths; no sample assets are bundled or distributed by Verdandi.
 
 The current procedural voices remain the baseline and fallback while the sample-based path is evaluated. Contemplative's established sound and the distorted Guitar voice should not be changed without an audible reason.
 
