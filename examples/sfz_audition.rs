@@ -115,7 +115,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     for note in first_note..=last_note {
         sampler.set_seed(seed ^ u64::from(note).wrapping_mul(0x9e37_79b9_7f4a_7c15));
-        if !sampler.note_on(note as u8, 0.8, NOTE_GATE_SECONDS) {
+        if !sampler.note_on(note, 0.8, NOTE_GATE_SECONDS) {
             silent_notes += 1;
             eprintln!("Warning: MIDI note {note} has no matching SFZ region");
         }
@@ -124,7 +124,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         while frames_remaining > 0 {
             let frames = frames_remaining.min(FRAMES_PER_CHUNK as u64) as usize;
             let sample_count = frames * usize::from(CHANNELS);
-            for frame in buffer[..sample_count].chunks_exact_mut(2) {
+            for frame in buffer[..sample_count].as_chunks_mut::<2>().0 {
                 let (left, right) = sampler.render_frame();
                 frame[0] = left.clamp(-1.0, 1.0);
                 frame[1] = right.clamp(-1.0, 1.0);
