@@ -23,6 +23,8 @@ pub mod prelude {
     pub use crate::composer::{Layer, LayerAction, LoopPlan, NoteEvent};
     pub use crate::engine::{Engine, MusicConfig, MusicShared, MusicStatus, MusicStinger};
     pub use crate::preset::{MusicPace, MusicPreset};
+    pub use crate::sfz::{SfzError, SfzInstrument, SfzVoice};
+    pub use crate::synth::Timbre;
     pub use crate::theory::{ScaleKind, Theme, ThemeOverrides};
 
     #[cfg(feature = "bevy-plugin")]
