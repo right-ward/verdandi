@@ -1,6 +1,6 @@
 # verdandi
 
-Seed-driven, layered procedural music for games. Verdandi has four style presets, with every sound synthesized at runtime and no prerecorded audio assets required. The same preset and seed produce the same evolving track.
+Seed-driven, layered music for games. Verdandi has four style presets and a procedural synthesizer that works without assets. Its first-party SFZ loader can also play user-supplied sampled instruments; no sample libraries are bundled or downloaded automatically. The same preset and seed produce the same musical decisions.
 
 Presets change musical composition as well as timbre:
 
@@ -65,6 +65,22 @@ cargo run --release --no-default-features --example render_wav -- 1234 classical
 cargo run --release --no-default-features --example render_wav -- 1234 classical-ambient 2 contemplative-arp.wav standard arp
 ```
 
+## First-party SFZ sample audition
+
+Verdandi includes an in-progress native SFZ loader and sample voice renderer. It currently supports the basic mapping and one-shot playback features needed by the Spanish Classical Guitar mapping, plus WAV PCM (8/16/24/32-bit) and IEEE float (32/64-bit) decoding. It is not yet a complete SFZ implementation and is not yet routed into the composition engine.
+
+Keep sample libraries on your own device. The mapping's `sample=` paths are resolved against the sample-root argument, so the SFZ text can live separately from the original library directory. No samples are included in the crate.
+
+Render a chromatic audition file (the example defaults to MIDI notes 48–72):
+
+```sh
+cargo run --release --no-default-features --example sfz_render_wav -- samples/SpanishClassicalGuitar-20190618.sfz /path/to/SpanishClassicalGuitar-SFZ guitar.wav
+```
+
+Replace `/path/to/SpanishClassicalGuitar-SFZ` with the directory containing the library's `samples/` subdirectory. You can optionally pass the first and last MIDI notes after the output path. The renderer reports unsupported opcodes and errors for missing samples rather than silently substituting an unrelated sound.
+
+Current support includes key and velocity ranges, root key, volume, release time, and basic loop points. Envelopes beyond release, velocity curves, random/round-robin selection, filters, modulation, stereo preservation, and many SFZ extensions are not implemented yet. The procedural engine remains unchanged and fully usable without SFZ files.
+
 ## Use it in your game
 
 ```toml
@@ -101,7 +117,7 @@ Not using Bevy? Depend on it with `default-features = false` and call `Engine::r
 | `theory.rs` | Scales and preset-aware `Theme` (key/mode/tempo/progression from seed) |
 | `preset.rs` | The four musical presets and standard/fast pacing |
 | `composer.rs` | Preset-specific layer generators, motif-based melodies and riffs, mutation, repeat/mutate/regenerate policy per layer |
-| `synth.rs` | Small polyphonic synth + drums + stereo delay; no allocation on the hot path |
+| `synth.rs` | Procedural polyphonic synth + drums + stereo delay; no allocation on the hot path |\n| `sfz.rs` | First-party SFZ region loader, WAV decoder, and sampled voice renderer (partial SFZ support) |
 | `engine.rs` | Sequencer, `MusicConfig`, lock-free `MusicShared` control/status block |
 | `examples/render_wav.rs` | Headless CLI exporter for fixed-length WAV tracks |
 | `plugin.rs` | Bevy `Decodable` source, `MusicController`, plugin |
