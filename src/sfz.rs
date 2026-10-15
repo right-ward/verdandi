@@ -832,7 +832,7 @@ mod tests {
         let sfz_path = mapping_dir.join("guitar.sfz");
         fs::write(
             &sfz_path,
-            "<region> sample=samples/tone.wav key=60\\n",
+            "<region> sample=samples/tone.wav key=60\n",
         )
         .unwrap();
 
