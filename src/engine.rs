@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::composer::{Composer, Layer, LayerAction, LoopPlan, STEPS_PER_BAR, STEPS_PER_LOOP};
 use crate::preset::{MusicPace, MusicPreset};
+use crate::sfz::{SfzInstrument, SfzVoice};
 use crate::synth::{Synth, Timbre};
 use crate::theory::{ScaleKind, Theme, ThemeOverrides, NOTE_NAMES};
 
@@ -188,6 +189,9 @@ pub struct MusicConfig {
     /// Fast mode increases tempo and rhythmic density for metal presets.
     pub pace: MusicPace,
     pub sample_rate: u32,
+    /// Optional user-loaded SFZ instruments keyed by procedural timbre. Empty by default.
+    /// Load instruments before constructing the engine; missing note zones use procedural voices.
+    pub sfz_instruments: Vec<(Timbre, Arc<SfzInstrument>)>,
     /// Pin key / mode / tempo / progression instead of deriving them from the seed.
     pub theme: ThemeOverrides,
     /// Let intensity rise and fall on its own (layers fade in and out over `auto_intensity_period_loops`).
@@ -205,6 +209,7 @@ impl Default for MusicConfig {
             preset: MusicPreset::MythicAmbient,
             pace: MusicPace::Standard,
             sample_rate: 44_100,
+            sfz_instruments: Vec::new(),
             theme: ThemeOverrides::default(),
             auto_intensity: true,
             auto_intensity_period_loops: 8,
@@ -455,6 +460,8 @@ pub struct Engine {
     preset: MusicPreset,
     pace: MusicPace,
     synth: Synth,
+    sfz_instruments: Vec<(Timbre, Arc<SfzInstrument>)>,
+    sfz_voices: Vec<(SfzVoice, f32)>,
     composer: Composer,
     plan: LoopPlan,
     step: u32,
@@ -499,6 +506,8 @@ impl Engine {
             preset: cfg.preset,
             pace: cfg.pace,
             synth,
+            sfz_instruments: cfg.sfz_instruments.clone(),
+            sfz_voices: Vec::with_capacity(128),
             composer: Composer::with_preset(seed, theme, cfg.preset, cfg.pace),
             plan: LoopPlan::default(),
             step: 0,
@@ -573,7 +582,17 @@ impl Engine {
             for ev in &self.plan.layers[layer.index()] {
                 if ev.step == self.step {
                     let gate = ev.len as f32 * step_secs * 0.95;
-                    self.synth.note_on(ev.timbre, ev.note, ev.vel, gate);
+                    let sampled = self.sfz_instruments.iter()
+                        .find(|(timbre, _)| *timbre == ev.timbre)
+                        .and_then(|(_, instrument)| instrument.note_on(ev.note, ev.vel, gate, self.sample_rate));
+                    if let Some(voice) = sampled {
+                        if self.sfz_voices.len() == self.sfz_voices.capacity() {
+                            self.sfz_voices.remove(0);
+                        }
+                        self.sfz_voices.push((voice, 0.5));
+                    } else {
+                        self.synth.note_on(ev.timbre, ev.note, ev.vel, gate);
+                    }
                 }
             }
         }
@@ -599,6 +618,7 @@ impl Engine {
             preset,
             pace,
             sample_rate: self.sample_rate,
+            sfz_instruments: self.sfz_instruments.clone(),
             theme: self.overrides.clone(),
             auto_intensity: self.shared.auto_intensity(),
             auto_intensity_period_loops: self.period_loops,
@@ -624,6 +644,8 @@ impl Engine {
         std::mem::swap(&mut self.preset, &mut other.preset);
         std::mem::swap(&mut self.pace, &mut other.pace);
         std::mem::swap(&mut self.synth, &mut other.synth);
+        std::mem::swap(&mut self.sfz_instruments, &mut other.sfz_instruments);
+        std::mem::swap(&mut self.sfz_voices, &mut other.sfz_voices);
         std::mem::swap(&mut self.composer, &mut other.composer);
         std::mem::swap(&mut self.plan, &mut other.plan);
         std::mem::swap(&mut self.step, &mut other.step);
@@ -698,6 +720,16 @@ impl Engine {
         }
         self.countdown -= 1.0;
         let mut outgoing = self.synth.render_frame();
+        let mut sampled_left = 0.0f32;
+        let mut sampled_right = 0.0f32;
+        for (voice, gain) in &mut self.sfz_voices {
+            let sample = voice.next_sample() * *gain;
+            sampled_left += sample;
+            sampled_right += sample;
+        }
+        self.sfz_voices.retain(|(voice, _)| !voice.is_finished());
+        outgoing.0 = (outgoing.0 + sampled_left).tanh();
+        outgoing.1 = (outgoing.1 + sampled_right).tanh();
         let stinger = self.render_stinger();
         outgoing.0 = (outgoing.0 + stinger.0 * 0.55).tanh();
         outgoing.1 = (outgoing.1 + stinger.1 * 0.55).tanh();
