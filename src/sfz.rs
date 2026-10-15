@@ -811,6 +811,47 @@ mod tests {
         let _ = fs::remove_dir(root);
     }
 
+    #[test]
+    fn loads_mapping_with_samples_outside_the_mapping_directory() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be after UNIX epoch")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "verdandi-sfz-root-{}-{unique}",
+            std::process::id()
+        ));
+        let mapping_dir = root.join("mappings");
+        let library_root = root.join("library");
+        fs::create_dir_all(&mapping_dir).unwrap();
+        fs::create_dir_all(library_root.join("samples")).unwrap();
+
+        write_test_wav(&library_root.join("samples/tone.wav"));
+        let sfz_path = mapping_dir.join("guitar.sfz");
+        fs::write(
+            &sfz_path,
+            "<region> sample=samples/tone.wav key=60\\n",
+        )
+        .unwrap();
+
+        let instrument =
+            Arc::new(SfzInstrument::load_with_sample_root(&sfz_path, &library_root).unwrap());
+        assert_eq!(instrument.region_count(), 1);
+        let mut sampler = SfzSampler::new(instrument, 44_100, 7);
+        assert!(sampler.note_on(60, 0.8, 0.1));
+        let audio: Vec<_> = (0..128).map(|_| sampler.render_frame()).collect();
+        assert!(audio
+            .iter()
+            .any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
+        assert!(audio
+            .iter()
+            .all(|(left, right)| left.is_finite() && right.is_finite()));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
     fn write_test_wav(path: &Path) {
         let frames = 1024u32;
         let mut bytes = Vec::new();
