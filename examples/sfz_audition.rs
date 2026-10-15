@@ -40,7 +40,9 @@ fn run() -> Result<(), Box<dyn Error>> {
             if sample_root.is_some() {
                 return Err("--sample-root may only be specified once".into());
             }
-            let root = args.get(index + 1).ok_or("--sample-root requires a directory")?;
+            let root = args
+                .get(index + 1)
+                .ok_or("--sample-root requires a directory")?;
             sample_root = Some(root.clone());
             index += 2;
         } else {
@@ -67,8 +69,18 @@ fn run() -> Result<(), Box<dyn Error>> {
         );
     }
 
-    let inferred_first = instrument.regions().iter().map(|region| region.low_key).min().unwrap_or(0);
-    let inferred_last = instrument.regions().iter().map(|region| region.high_key).max().unwrap_or(127);
+    let inferred_first = instrument
+        .regions()
+        .iter()
+        .map(|region| region.low_key)
+        .min()
+        .unwrap_or(0);
+    let inferred_last = instrument
+        .regions()
+        .iter()
+        .map(|region| region.high_key)
+        .max()
+        .unwrap_or(127);
     let first_note = parse_optional(&positional, 3, inferred_first, "first MIDI note")?;
     let last_note = parse_optional(&positional, 4, inferred_last, "last MIDI note")?;
     if first_note > 127 || last_note > 127 || first_note > last_note {
@@ -77,13 +89,20 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     let note_count = u64::from(last_note - first_note + 1);
     let frames_per_note = u64::from(SAMPLE_RATE) * u64::from(SECONDS_PER_NOTE);
-    let total_frames = note_count.checked_mul(frames_per_note).ok_or("requested render is too large")?;
+    let total_frames = note_count
+        .checked_mul(frames_per_note)
+        .ok_or("requested render is too large")?;
     let data_bytes = total_frames
         .checked_mul(u64::from(CHANNELS) * u64::from(BITS_PER_SAMPLE / 8))
         .ok_or("requested WAV is too large")?;
-    let data_size = u32::try_from(data_bytes).map_err(|_| "requested WAV exceeds the standard RIFF size limit")?;
-    let riff_size = u32::try_from(36u64.checked_add(data_bytes).ok_or("requested WAV is too large")?)
+    let data_size = u32::try_from(data_bytes)
         .map_err(|_| "requested WAV exceeds the standard RIFF size limit")?;
+    let riff_size = u32::try_from(
+        36u64
+            .checked_add(data_bytes)
+            .ok_or("requested WAV is too large")?,
+    )
+    .map_err(|_| "requested WAV exceeds the standard RIFF size limit")?;
 
     let file = File::create(output)?;
     let mut writer = BufWriter::new(file);
@@ -136,13 +155,22 @@ fn run() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn parse_optional<T>(args: &[String], index: usize, default: T, label: &str) -> Result<T, Box<dyn Error>>
+fn parse_optional<T>(
+    args: &[String],
+    index: usize,
+    default: T,
+    label: &str,
+) -> Result<T, Box<dyn Error>>
 where
     T: std::str::FromStr,
     T::Err: Error + 'static,
 {
     args.get(index)
-        .map(|value| value.parse::<T>().map_err(|_| format!("invalid {label}: {value:?}").into()))
+        .map(|value| {
+            value
+                .parse::<T>()
+                .map_err(|_| format!("invalid {label}: {value:?}").into())
+        })
         .unwrap_or(Ok(default))
 }
 
