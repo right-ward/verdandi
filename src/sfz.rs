@@ -29,15 +29,27 @@ pub struct SfzError {
 
 impl SfzError {
     fn message(message: impl Into<String>) -> Self {
-        Self { path: None, line: None, message: message.into() }
+        Self {
+            path: None,
+            line: None,
+            message: message.into(),
+        }
     }
 
     fn at_line(line: usize, message: impl Into<String>) -> Self {
-        Self { path: None, line: Some(line), message: message.into() }
+        Self {
+            path: None,
+            line: Some(line),
+            message: message.into(),
+        }
     }
 
     fn at_path(path: impl Into<PathBuf>, message: impl Into<String>) -> Self {
-        Self { path: Some(path.into()), line: None, message: message.into() }
+        Self {
+            path: Some(path.into()),
+            line: None,
+            message: message.into(),
+        }
     }
 
     fn with_path(mut self, path: impl Into<PathBuf>) -> Self {
@@ -122,10 +134,29 @@ enum Section {
 }
 
 const SUPPORTED_OPCODES: &[&str] = &[
-    "sample", "key", "lokey", "hikey", "pitch_keycenter", "lovel", "hivel",
-    "lorand", "hirand", "volume", "tune", "transpose", "amp_veltrack",
-    "loop_mode", "loop_start", "loop_end", "offset", "end", "ampeg_attack",
-    "ampeg_decay", "ampeg_sustain", "ampeg_release", "default_path",
+    "sample",
+    "key",
+    "lokey",
+    "hikey",
+    "pitch_keycenter",
+    "lovel",
+    "hivel",
+    "lorand",
+    "hirand",
+    "volume",
+    "tune",
+    "transpose",
+    "amp_veltrack",
+    "loop_mode",
+    "loop_start",
+    "loop_end",
+    "offset",
+    "end",
+    "ampeg_attack",
+    "ampeg_decay",
+    "ampeg_sustain",
+    "ampeg_release",
+    "default_path",
 ];
 
 /// Parse SFZ text without loading the referenced sample files.
@@ -149,8 +180,14 @@ pub fn parse_sfz(source: &str) -> Result<SfzDefinition, SfzError> {
             if let Some(tag_start) = remaining.find('<') {
                 let prefix = remaining[..tag_start].trim();
                 apply_assignments(
-                    prefix, line_number, section, &mut control, &mut global, &mut group,
-                    &mut current_region, &mut unsupported,
+                    prefix,
+                    line_number,
+                    section,
+                    &mut control,
+                    &mut global,
+                    &mut group,
+                    &mut current_region,
+                    &mut unsupported,
                 );
                 let after_open = &remaining[tag_start + 1..];
                 let Some(tag_end) = after_open.find('>') else {
@@ -194,8 +231,14 @@ pub fn parse_sfz(source: &str) -> Result<SfzDefinition, SfzError> {
                 }
             } else {
                 apply_assignments(
-                    remaining.trim(), line_number, section, &mut control, &mut global, &mut group,
-                    &mut current_region, &mut unsupported,
+                    remaining.trim(),
+                    line_number,
+                    section,
+                    &mut control,
+                    &mut global,
+                    &mut group,
+                    &mut current_region,
+                    &mut unsupported,
                 );
                 break;
             }
@@ -209,7 +252,9 @@ pub fn parse_sfz(source: &str) -> Result<SfzDefinition, SfzError> {
         return Err(SfzError::message("SFZ contains no <region> entries"));
     }
 
-    let default_path = control.get("default_path").map(|value| normalize_path(value));
+    let default_path = control
+        .get("default_path")
+        .map(|value| normalize_path(value));
     Ok(SfzDefinition {
         default_path,
         regions,
@@ -228,22 +273,32 @@ fn apply_assignments(
     unsupported: &mut BTreeSet<String>,
 ) {
     for token in tokenize(text) {
-        let Some((key, value)) = token.split_once('=') else { continue };
+        let Some((key, value)) = token.split_once('=') else {
+            continue;
+        };
         let key = key.trim().to_ascii_lowercase();
         let value = value.trim().trim_matches('"').trim_matches('\'').to_owned();
         if !SUPPORTED_OPCODES.contains(&key.as_str()) {
             unsupported.insert(key.clone());
         }
-        if key == "loop_mode" && !matches!(
-            value.to_ascii_lowercase().as_str(),
-            "no_loop" | "loop_continuous" | "loop_sustain" | "one_shot"
-        ) {
+        if key == "loop_mode"
+            && !matches!(
+                value.to_ascii_lowercase().as_str(),
+                "no_loop" | "loop_continuous" | "loop_sustain" | "one_shot"
+            )
+        {
             unsupported.insert(format!("loop_mode={value}"));
         }
         match section {
-            Section::Control => { control.insert(key, value); }
-            Section::Global => { global.insert(key, value); }
-            Section::Group => { group.insert(key, value); }
+            Section::Control => {
+                control.insert(key, value);
+            }
+            Section::Global => {
+                global.insert(key, value);
+            }
+            Section::Group => {
+                group.insert(key, value);
+            }
             Section::Region => {
                 if let Some((map, _)) = current_region.as_mut() {
                     map.insert(key, value);
@@ -272,12 +327,16 @@ fn tokenize(text: &str) -> Vec<String> {
             token.push(ch);
         }
     }
-    if !token.is_empty() { tokens.push(token); }
+    if !token.is_empty() {
+        tokens.push(token);
+    }
     tokens
 }
 
 fn build_region(map: HashMap<String, String>, line: usize) -> Result<SfzRegion, SfzError> {
-    let sample = map.get("sample").ok_or_else(|| SfzError::at_line(line, "region has no sample= path"))?;
+    let sample = map
+        .get("sample")
+        .ok_or_else(|| SfzError::at_line(line, "region has no sample= path"))?;
     let key = optional_u8(&map, "key", line)?;
     let low_key = optional_u8(&map, "lokey", line)?.or(key).unwrap_or(0);
     let high_key = optional_u8(&map, "hikey", line)?.or(key).unwrap_or(127);
@@ -292,12 +351,20 @@ fn build_region(map: HashMap<String, String>, line: usize) -> Result<SfzRegion, 
     if low_velocity > high_velocity {
         return Err(SfzError::at_line(line, "lovel must not exceed hivel"));
     }
-    let low_random = optional_f32(&map, "lorand", line)?.unwrap_or(0.0).clamp(0.0, 1.0);
-    let high_random = optional_f32(&map, "hirand", line)?.unwrap_or(1.0).clamp(0.0, 1.0);
+    let low_random = optional_f32(&map, "lorand", line)?
+        .unwrap_or(0.0)
+        .clamp(0.0, 1.0);
+    let high_random = optional_f32(&map, "hirand", line)?
+        .unwrap_or(1.0)
+        .clamp(0.0, 1.0);
     if low_random >= high_random {
         return Err(SfzError::at_line(line, "lorand must be less than hirand"));
     }
-    let loop_mode = match map.get("loop_mode").map(|v| v.to_ascii_lowercase()).as_deref() {
+    let loop_mode = match map
+        .get("loop_mode")
+        .map(|v| v.to_ascii_lowercase())
+        .as_deref()
+    {
         None | Some("no_loop") => SfzLoopMode::NoLoop,
         Some("loop_continuous") => SfzLoopMode::Continuous,
         Some("loop_sustain") => SfzLoopMode::Sustain,
@@ -314,46 +381,83 @@ fn build_region(map: HashMap<String, String>, line: usize) -> Result<SfzRegion, 
         ("ampeg_release", release_seconds),
     ] {
         if value < 0.0 {
-            return Err(SfzError::at_line(line, format!("{name} cannot be negative")));
+            return Err(SfzError::at_line(
+                line,
+                format!("{name} cannot be negative"),
+            ));
         }
     }
     Ok(SfzRegion {
         sample: normalize_path(sample),
-        low_key, high_key, pitch_keycenter, low_velocity, high_velocity,
-        low_random, high_random,
+        low_key,
+        high_key,
+        pitch_keycenter,
+        low_velocity,
+        high_velocity,
+        low_random,
+        high_random,
         volume_db: optional_f32(&map, "volume", line)?.unwrap_or(0.0),
         tune_cents: optional_f32(&map, "tune", line)?.unwrap_or(0.0),
         transpose_semitones: optional_f32(&map, "transpose", line)?.unwrap_or(0.0),
-        amp_veltrack: optional_f32(&map, "amp_veltrack", line)?.unwrap_or(100.0).max(0.0),
+        amp_veltrack: optional_f32(&map, "amp_veltrack", line)?
+            .unwrap_or(100.0)
+            .max(0.0),
         loop_mode,
         loop_start: optional_usize(&map, "loop_start", line)?,
         loop_end: optional_usize(&map, "loop_end", line)?,
         sample_offset: optional_usize(&map, "offset", line)?.unwrap_or(0),
         sample_end: optional_usize(&map, "end", line)?,
-        attack_seconds, decay_seconds,
+        attack_seconds,
+        decay_seconds,
         sustain_level: (sustain_percent / 100.0).clamp(0.0, 1.0),
         release_seconds,
     })
 }
 
-fn optional_u8(map: &HashMap<String, String>, key: &str, line: usize) -> Result<Option<u8>, SfzError> {
-    map.get(key).map(|value| value.parse::<u8>()
-        .map_err(|_| SfzError::at_line(line, format!("invalid {key} value {value:?}")))).transpose()
+fn optional_u8(
+    map: &HashMap<String, String>,
+    key: &str,
+    line: usize,
+) -> Result<Option<u8>, SfzError> {
+    map.get(key)
+        .map(|value| {
+            value
+                .parse::<u8>()
+                .map_err(|_| SfzError::at_line(line, format!("invalid {key} value {value:?}")))
+        })
+        .transpose()
 }
 
-fn optional_usize(map: &HashMap<String, String>, key: &str, line: usize) -> Result<Option<usize>, SfzError> {
-    map.get(key).map(|value| value.parse::<usize>()
-        .map_err(|_| SfzError::at_line(line, format!("invalid {key} value {value:?}")))).transpose()
+fn optional_usize(
+    map: &HashMap<String, String>,
+    key: &str,
+    line: usize,
+) -> Result<Option<usize>, SfzError> {
+    map.get(key)
+        .map(|value| {
+            value
+                .parse::<usize>()
+                .map_err(|_| SfzError::at_line(line, format!("invalid {key} value {value:?}")))
+        })
+        .transpose()
 }
 
-fn optional_f32(map: &HashMap<String, String>, key: &str, line: usize) -> Result<Option<f32>, SfzError> {
-    map.get(key).map(|value| {
-        let parsed = value.parse::<f32>().map_err(|_| SfzError::at_line(line, format!("invalid {key} value {value:?}")))?;
-        if !parsed.is_finite() {
-            return Err(SfzError::at_line(line, format!("{key} must be finite")));
-        }
-        Ok(parsed)
-    }).transpose()
+fn optional_f32(
+    map: &HashMap<String, String>,
+    key: &str,
+    line: usize,
+) -> Result<Option<f32>, SfzError> {
+    map.get(key)
+        .map(|value| {
+            let parsed = value
+                .parse::<f32>()
+                .map_err(|_| SfzError::at_line(line, format!("invalid {key} value {value:?}")))?;
+            if !parsed.is_finite() {
+                return Err(SfzError::at_line(line, format!("{key} must be finite")));
+            }
+            Ok(parsed)
+        })
+        .transpose()
 }
 
 fn normalize_path(path: &str) -> PathBuf {
@@ -396,8 +500,9 @@ impl SfzInstrument {
         sample_root: impl AsRef<Path>,
     ) -> Result<Self, SfzError> {
         let path = path.as_ref();
-        let text = fs::read_to_string(path)
-            .map_err(|error| SfzError::at_path(path, format!("could not read SFZ text: {error}")))?;
+        let text = fs::read_to_string(path).map_err(|error| {
+            SfzError::at_path(path, format!("could not read SFZ text: {error}"))
+        })?;
         let definition = parse_sfz(&text).map_err(|error| error.with_path(path))?;
         let sample_root = sample_root.as_ref();
         let sample_root = definition
@@ -427,30 +532,52 @@ impl SfzInstrument {
             let sample = &samples[sample_index];
             let end = region.sample_end.unwrap_or(sample.frames);
             if region.sample_offset >= end || end > sample.frames {
-                return Err(SfzError::at_path(&sample_path, format!(
-                    "invalid sample range offset={} end={} (file has {} frames)",
-                    region.sample_offset, end, sample.frames
-                )));
+                return Err(SfzError::at_path(
+                    &sample_path,
+                    format!(
+                        "invalid sample range offset={} end={} (file has {} frames)",
+                        region.sample_offset, end, sample.frames
+                    ),
+                ));
             }
             if let (Some(start), Some(loop_end)) = (region.loop_start, region.loop_end) {
                 if start < region.sample_offset || start >= loop_end || loop_end > end {
-                    return Err(SfzError::at_path(&sample_path, format!(
+                    return Err(SfzError::at_path(
+                        &sample_path,
+                        format!(
                         "invalid loop range start={start} end={loop_end} (sample range {}..{end})",
                         region.sample_offset
-                    )));
+                    ),
+                    ));
                 }
             } else if region.loop_start.is_some() || region.loop_end.is_some() {
-                return Err(SfzError::at_path(&sample_path, "loop_start and loop_end must both be set"));
+                return Err(SfzError::at_path(
+                    &sample_path,
+                    "loop_start and loop_end must both be set",
+                ));
             }
             sample_for_region.push(sample_index);
         }
-        Ok(Self { path: path.to_path_buf(), definition, samples, sample_for_region })
+        Ok(Self {
+            path: path.to_path_buf(),
+            definition,
+            samples,
+            sample_for_region,
+        })
     }
 
-    pub fn path(&self) -> &Path { &self.path }
-    pub fn regions(&self) -> &[SfzRegion] { self.definition.regions() }
-    pub fn region_count(&self) -> usize { self.definition.regions.len() }
-    pub fn unsupported_opcodes(&self) -> &[String] { self.definition.unsupported_opcodes() }
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+    pub fn regions(&self) -> &[SfzRegion] {
+        self.definition.regions()
+    }
+    pub fn region_count(&self) -> usize {
+        self.definition.regions.len()
+    }
+    pub fn unsupported_opcodes(&self) -> &[String] {
+        self.definition.unsupported_opcodes()
+    }
 }
 
 fn lexical_normalize(path: &Path) -> PathBuf {
@@ -459,7 +586,9 @@ fn lexical_normalize(path: &Path) -> PathBuf {
         use std::path::Component;
         match component {
             Component::CurDir => {}
-            Component::ParentDir => { out.pop(); }
+            Component::ParentDir => {
+                out.pop();
+            }
             other => out.push(other.as_os_str()),
         }
     }
@@ -467,7 +596,8 @@ fn lexical_normalize(path: &Path) -> PathBuf {
 }
 
 fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
-    let bytes = fs::read(path).map_err(|error| SfzError::at_path(path, format!("could not read sample: {error}")))?;
+    let bytes = fs::read(path)
+        .map_err(|error| SfzError::at_path(path, format!("could not read sample: {error}")))?;
     if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
         return Err(SfzError::at_path(path, "unsupported sample format: expected RIFF/WAVE; FLAC and other codecs are not supported yet"));
     }
@@ -477,9 +607,14 @@ fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
     let mut bits = None::<u16>;
     let mut audio_data = None::<&[u8]>;
     let mut cursor = 12usize;
-    while cursor.checked_add(8).filter(|end| *end <= bytes.len()).is_some() {
+    while cursor
+        .checked_add(8)
+        .filter(|end| *end <= bytes.len())
+        .is_some()
+    {
         let chunk_id = &bytes[cursor..cursor + 4];
-        let chunk_size = u32::from_le_bytes(bytes[cursor + 4..cursor + 8].try_into().unwrap()) as usize;
+        let chunk_size =
+            u32::from_le_bytes(bytes[cursor + 4..cursor + 8].try_into().unwrap()) as usize;
         let start = cursor + 8;
         let Some(end) = start.checked_add(chunk_size) else {
             return Err(SfzError::at_path(path, "WAV chunk size overflow"));
@@ -489,10 +624,18 @@ fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
         }
         match chunk_id {
             b"fmt " if chunk_size >= 16 => {
-                format = Some(u16::from_le_bytes(bytes[start..start + 2].try_into().unwrap()));
-                channels = Some(u16::from_le_bytes(bytes[start + 2..start + 4].try_into().unwrap()) as usize);
-                sample_rate = Some(u32::from_le_bytes(bytes[start + 4..start + 8].try_into().unwrap()));
-                bits = Some(u16::from_le_bytes(bytes[start + 14..start + 16].try_into().unwrap()));
+                format = Some(u16::from_le_bytes(
+                    bytes[start..start + 2].try_into().unwrap(),
+                ));
+                channels = Some(
+                    u16::from_le_bytes(bytes[start + 2..start + 4].try_into().unwrap()) as usize,
+                );
+                sample_rate = Some(u32::from_le_bytes(
+                    bytes[start + 4..start + 8].try_into().unwrap(),
+                ));
+                bits = Some(u16::from_le_bytes(
+                    bytes[start + 14..start + 16].try_into().unwrap(),
+                ));
             }
             b"data" => audio_data = Some(&bytes[start..end]),
             _ => {}
@@ -500,21 +643,33 @@ fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
         cursor = end.saturating_add(chunk_size & 1);
     }
 
-    let format = format.ok_or_else(|| SfzError::at_path(path, "WAV file is missing a valid fmt chunk"))?;
-    let channels = channels.ok_or_else(|| SfzError::at_path(path, "WAV channel count is missing"))?;
-    let sample_rate = sample_rate.ok_or_else(|| SfzError::at_path(path, "WAV sample rate is missing"))?;
+    let format =
+        format.ok_or_else(|| SfzError::at_path(path, "WAV file is missing a valid fmt chunk"))?;
+    let channels =
+        channels.ok_or_else(|| SfzError::at_path(path, "WAV channel count is missing"))?;
+    let sample_rate =
+        sample_rate.ok_or_else(|| SfzError::at_path(path, "WAV sample rate is missing"))?;
     let bits = bits.ok_or_else(|| SfzError::at_path(path, "WAV bit depth is missing"))?;
-    let audio_data = audio_data.ok_or_else(|| SfzError::at_path(path, "WAV file is missing a data chunk"))?;
+    let audio_data =
+        audio_data.ok_or_else(|| SfzError::at_path(path, "WAV file is missing a data chunk"))?;
     if !(1..=2).contains(&channels) || sample_rate == 0 {
-        return Err(SfzError::at_path(path, format!("unsupported WAV layout: {channels} channel(s), {sample_rate} Hz")));
+        return Err(SfzError::at_path(
+            path,
+            format!("unsupported WAV layout: {channels} channel(s), {sample_rate} Hz"),
+        ));
     }
     if !matches!((format, bits), (1, 8 | 16 | 24 | 32) | (3, 32 | 64)) {
         return Err(SfzError::at_path(path, format!("unsupported WAV encoding: format {format}, {bits} bits (supports PCM 8/16/24/32-bit and IEEE float 32/64-bit)")));
     }
     let bytes_per_sample = usize::from(bits / 8);
-    let frame_bytes = channels.checked_mul(bytes_per_sample).ok_or_else(|| SfzError::at_path(path, "WAV frame size overflow"))?;
+    let frame_bytes = channels
+        .checked_mul(bytes_per_sample)
+        .ok_or_else(|| SfzError::at_path(path, "WAV frame size overflow"))?;
     if frame_bytes == 0 || audio_data.len() % frame_bytes != 0 {
-        return Err(SfzError::at_path(path, "WAV data length is not aligned to complete audio frames"));
+        return Err(SfzError::at_path(
+            path,
+            "WAV data length is not aligned to complete audio frames",
+        ));
     }
     let mut samples = Vec::with_capacity(audio_data.len() / bytes_per_sample);
     for raw in audio_data.chunks_exact(bytes_per_sample) {
@@ -522,8 +677,11 @@ fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
             (1, 8) => (f32::from(raw[0]) - 128.0) / 128.0,
             (1, 16) => i16::from_le_bytes(raw.try_into().unwrap()) as f32 / 32768.0,
             (1, 24) => {
-                let mut value = i32::from(raw[0]) | (i32::from(raw[1]) << 8) | (i32::from(raw[2]) << 16);
-                if value & 0x0080_0000 != 0 { value |= !0x00ff_ffff; }
+                let mut value =
+                    i32::from(raw[0]) | (i32::from(raw[1]) << 8) | (i32::from(raw[2]) << 16);
+                if value & 0x0080_0000 != 0 {
+                    value |= !0x00ff_ffff;
+                }
                 value as f32 / 8_388_608.0
             }
             (1, 32) => i32::from_le_bytes(raw.try_into().unwrap()) as f32 / 2_147_483_648.0,
@@ -532,7 +690,10 @@ fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
             _ => unreachable!(),
         };
         if !value.is_finite() {
-            return Err(SfzError::at_path(path, "WAV contains a non-finite sample value"));
+            return Err(SfzError::at_path(
+                path,
+                "WAV contains a non-finite sample value",
+            ));
         }
         samples.push(value.clamp(-1.0, 1.0));
     }
@@ -540,7 +701,12 @@ fn decode_wav(path: &Path) -> Result<SampleData, SfzError> {
     if frames == 0 {
         return Err(SfzError::at_path(path, "WAV contains no audio frames"));
     }
-    Ok(SampleData { samples, channels, sample_rate, frames })
+    Ok(SampleData {
+        samples,
+        channels,
+        sample_rate,
+        frames,
+    })
 }
 
 #[derive(Debug)]
@@ -579,14 +745,22 @@ impl SfzSampler {
 
     pub fn set_seed(&mut self, seed: u64) {
         self.random_state = seed ^ 0x9e37_79b9_7f4a_7c15;
-        if self.random_state == 0 { self.random_state = 1; }
+        if self.random_state == 0 {
+            self.random_state = 1;
+        }
     }
 
     pub fn set_gain(&mut self, gain: f32) {
-        self.gain = if gain.is_finite() { gain.clamp(0.0, 4.0) } else { 0.0 };
+        self.gain = if gain.is_finite() {
+            gain.clamp(0.0, 4.0)
+        } else {
+            0.0
+        };
     }
 
-    pub fn active_voice_count(&self) -> usize { self.voices.len() }
+    pub fn active_voice_count(&self) -> usize {
+        self.voices.len()
+    }
 
     /// Trigger all matching regions. Returns false when the instrument has no matching zone,
     /// allowing the caller to fall back to the procedural voice.
@@ -596,9 +770,13 @@ impl SfzSampler {
         let random = self.next_random();
         let mut triggered = false;
         for (region_index, region) in self.instrument.definition.regions.iter().enumerate() {
-            if note < region.low_key || note > region.high_key ||
-                velocity_key < region.low_velocity || velocity_key > region.high_velocity ||
-                random < region.low_random || random >= region.high_random {
+            if note < region.low_key
+                || note > region.high_key
+                || velocity_key < region.low_velocity
+                || velocity_key > region.high_velocity
+                || random < region.low_random
+                || random >= region.high_random
+            {
                 continue;
             }
             let sample = &self.instrument.samples[self.instrument.sample_for_region[region_index]];
@@ -608,10 +786,16 @@ impl SfzSampler {
             let increment = f64::from(sample.sample_rate) / f64::from(self.sample_rate)
                 * 2.0f64.powf(pitch_delta / 12.0);
             let track = region.amp_veltrack / 100.0;
-            let velocity_gain = if track == 0.0 { 1.0 } else { velocity.powf(track) };
+            let velocity_gain = if track == 0.0 {
+                1.0
+            } else {
+                velocity.powf(track)
+            };
             let gate_frames = (gate_seconds.max(0.0) * self.sample_rate as f32) as u64;
             let release_frames = (region.release_seconds * self.sample_rate as f32) as u64;
-            if self.voices.len() == MAX_VOICES { self.voices.remove(0); }
+            if self.voices.len() == MAX_VOICES {
+                self.voices.remove(0);
+            }
             self.voices.push(Voice {
                 region_index,
                 position: region.sample_offset as f64,
@@ -633,8 +817,12 @@ impl SfzSampler {
         let mut right = 0.0;
         for voice in &mut self.voices {
             let region = &self.instrument.definition.regions[voice.region_index];
-            let sample = &self.instrument.samples[self.instrument.sample_for_region[voice.region_index]];
-            let sample_end = region.sample_end.unwrap_or(sample.frames).min(sample.frames);
+            let sample =
+                &self.instrument.samples[self.instrument.sample_for_region[voice.region_index]];
+            let sample_end = region
+                .sample_end
+                .unwrap_or(sample.frames)
+                .min(sample.frames);
             let loop_bounds = loop_range(region, sample_end);
             let looping = match region.loop_mode {
                 SfzLoopMode::Continuous => loop_bounds.is_some(),
@@ -645,7 +833,8 @@ impl SfzSampler {
                 if let Some((loop_start, loop_end)) = loop_bounds {
                     if voice.position >= loop_end as f64 {
                         voice.position = loop_start as f64
-                            + (voice.position - loop_start as f64).rem_euclid((loop_end - loop_start) as f64);
+                            + (voice.position - loop_start as f64)
+                                .rem_euclid((loop_end - loop_start) as f64);
                     }
                 }
             }
@@ -653,7 +842,11 @@ impl SfzSampler {
             if frame < sample_end {
                 let next_frame = if looping {
                     let (loop_start, loop_end) = loop_bounds.unwrap();
-                    if frame + 1 >= loop_end { loop_start } else { (frame + 1).min(sample_end - 1) }
+                    if frame + 1 >= loop_end {
+                        loop_start
+                    } else {
+                        (frame + 1).min(sample_end - 1)
+                    }
                 } else {
                     (frame + 1).min(sample_end - 1)
                 };
@@ -667,7 +860,13 @@ impl SfzSampler {
                     let second = channel_sample(next_frame, channel);
                     values[channel] = first + (second - first) * fraction;
                 }
-                let env = envelope(region, voice.age, voice.gate_frames, voice.release_frames, self.sample_rate);
+                let env = envelope(
+                    region,
+                    voice.age,
+                    voice.gate_frames,
+                    voice.release_frames,
+                    self.sample_rate,
+                );
                 let gain = voice.region_gain * voice.velocity_gain * env * self.gain;
                 left += values[0] * gain;
                 right += values[1] * gain;
@@ -677,13 +876,24 @@ impl SfzSampler {
         }
         self.voices.retain(|voice| {
             let region = &self.instrument.definition.regions[voice.region_index];
-            let sample = &self.instrument.samples[self.instrument.sample_for_region[voice.region_index]];
-            let end = region.sample_end.unwrap_or(sample.frames).min(sample.frames);
+            let sample =
+                &self.instrument.samples[self.instrument.sample_for_region[voice.region_index]];
+            let end = region
+                .sample_end
+                .unwrap_or(sample.frames)
+                .min(sample.frames);
             let natural_end = voice.position >= end as f64;
-            if region.loop_mode == SfzLoopMode::OneShot { return !natural_end; }
-            let release_finished = voice.age >= voice.gate_frames.saturating_add(voice.release_frames);
-            if region.loop_mode == SfzLoopMode::Continuous && !release_finished { return true; }
-            if region.loop_mode == SfzLoopMode::Sustain && !release_finished && !natural_end { return true; }
+            if region.loop_mode == SfzLoopMode::OneShot {
+                return !natural_end;
+            }
+            let release_finished =
+                voice.age >= voice.gate_frames.saturating_add(voice.release_frames);
+            if region.loop_mode == SfzLoopMode::Continuous && !release_finished {
+                return true;
+            }
+            if region.loop_mode == SfzLoopMode::Sustain && !release_finished && !natural_end {
+                return true;
+            }
             !natural_end && !release_finished
         });
         (left, right)
@@ -708,22 +918,35 @@ fn loop_range(region: &SfzRegion, sample_end: usize) -> Option<(usize, usize)> {
     (start >= region.sample_offset && start < end && end <= sample_end).then_some((start, end))
 }
 
-fn envelope(region: &SfzRegion, age: u64, gate_frames: u64, release_frames: u64, sample_rate: u32) -> f32 {
+fn envelope(
+    region: &SfzRegion,
+    age: u64,
+    gate_frames: u64,
+    release_frames: u64,
+    sample_rate: u32,
+) -> f32 {
     let seconds = age as f32 / sample_rate as f32;
     let gate_seconds = gate_frames as f32 / sample_rate as f32;
     let level_at = |time: f32| {
         if region.attack_seconds > 0.0 && time < region.attack_seconds {
             time / region.attack_seconds
-        } else if region.decay_seconds > 0.0 && time < region.attack_seconds + region.decay_seconds {
+        } else if region.decay_seconds > 0.0 && time < region.attack_seconds + region.decay_seconds
+        {
             let decay_pos = (time - region.attack_seconds).max(0.0) / region.decay_seconds;
             1.0 + (region.sustain_level - 1.0) * decay_pos
         } else {
             region.sustain_level
         }
     };
-    if region.loop_mode == SfzLoopMode::OneShot { return level_at(seconds); }
-    if age < gate_frames { return level_at(seconds); }
-    if release_frames == 0 || age >= gate_frames.saturating_add(release_frames) { return 0.0; }
+    if region.loop_mode == SfzLoopMode::OneShot {
+        return level_at(seconds);
+    }
+    if age < gate_frames {
+        return level_at(seconds);
+    }
+    if release_frames == 0 || age >= gate_frames.saturating_add(release_frames) {
+        return 0.0;
+    }
     let start_level = level_at(gate_seconds);
     let release_pos = (age - gate_frames) as f32 / release_frames as f32;
     start_level * (1.0 - release_pos).clamp(0.0, 1.0)
@@ -738,7 +961,11 @@ mod tests {
         let mapping = include_str!("../samples/SpanishClassicalGuitar-20190618.sfz");
         let definition = parse_sfz(mapping).expect("classical guitar SFZ should parse");
         assert_eq!(definition.regions().len(), 48);
-        let c4 = definition.regions().iter().find(|region| region.sample.ends_with("C4.wav")).unwrap();
+        let c4 = definition
+            .regions()
+            .iter()
+            .find(|region| region.sample.ends_with("C4.wav"))
+            .unwrap();
         assert_eq!(c4.low_key, 60);
         assert_eq!(c4.high_key, 60);
         assert_eq!(c4.pitch_keycenter, 60);
@@ -749,17 +976,32 @@ mod tests {
     fn parses_every_committed_mapping_and_reports_unimplemented_opcodes() {
         let fixtures = [
             ("Dave Choir", include_str!("../samples/Dave Choir.sfz")),
-            ("FSBS bridge", include_str!("../samples/EGuitarFSBS-clean bridge 20260807.sfz")),
-            ("FSBS bridge small", include_str!("../samples/EGuitarFSBS-clean bridge small 20260807.sfz")),
-            ("Lewis E Pyle Violin", include_str!("../samples/Lewis E Pyle Violin (Lite).sfz")),
-            ("Spanish Classical Guitar", include_str!("../samples/SpanishClassicalGuitar-20190618.sfz")),
+            (
+                "FSBS bridge",
+                include_str!("../samples/EGuitarFSBS-clean bridge 20260807.sfz"),
+            ),
+            (
+                "FSBS bridge small",
+                include_str!("../samples/EGuitarFSBS-clean bridge small 20260807.sfz"),
+            ),
+            (
+                "Lewis E Pyle Violin",
+                include_str!("../samples/Lewis E Pyle Violin (Lite).sfz"),
+            ),
+            (
+                "Spanish Classical Guitar",
+                include_str!("../samples/SpanishClassicalGuitar-20190618.sfz"),
+            ),
             ("ork dialogue", include_str!("../samples/ork_dialogue.sfz")),
             ("ork predrops", include_str!("../samples/ork_predrops.sfz")),
             ("ork vocals", include_str!("../samples/ork_vocals.sfz")),
         ];
         for (name, text) in fixtures {
             let definition = parse_sfz(text).unwrap_or_else(|error| panic!("{name}: {error}"));
-            assert!(!definition.regions().is_empty(), "{name} contains no regions");
+            assert!(
+                !definition.regions().is_empty(),
+                "{name} contains no regions"
+            );
         }
     }
 
@@ -773,7 +1015,10 @@ mod tests {
 <region> sample=D4.wav key=62
 "#;
         let definition = parse_sfz(source).unwrap();
-        assert_eq!(definition.default_path(), Some(Path::new("samples with spaces")));
+        assert_eq!(
+            definition.default_path(),
+            Some(Path::new("samples with spaces"))
+        );
         assert_eq!(definition.regions().len(), 2);
         assert!((definition.regions()[1].release_seconds - 0.8).abs() < 0.0001);
         assert!((definition.regions()[1].attack_seconds - 0.1).abs() < 0.0001);
@@ -795,7 +1040,11 @@ mod tests {
         let wav_path = root.join("tone.wav");
         let sfz_path = root.join("tone.sfz");
         write_test_wav(&wav_path);
-        fs::write(&sfz_path, "<global> amp_veltrack=100\n<region> sample=tone.wav key=60\n").unwrap();
+        fs::write(
+            &sfz_path,
+            "<global> amp_veltrack=100\n<region> sample=tone.wav key=60\n",
+        )
+        .unwrap();
         let instrument = Arc::new(SfzInstrument::load(&sfz_path).unwrap());
         let mut first = SfzSampler::new(instrument.clone(), 44_100, 9);
         let mut second = SfzSampler::new(instrument, 44_100, 9);
@@ -804,8 +1053,12 @@ mod tests {
         let first_audio: Vec<_> = (0..256).map(|_| first.render_frame()).collect();
         let second_audio: Vec<_> = (0..256).map(|_| second.render_frame()).collect();
         assert_eq!(first_audio, second_audio);
-        assert!(first_audio.iter().any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
-        assert!(first_audio.iter().all(|(left, right)| left.is_finite() && right.is_finite()));
+        assert!(first_audio
+            .iter()
+            .any(|(left, right)| left.abs() > 0.001 || right.abs() > 0.001));
+        assert!(first_audio
+            .iter()
+            .all(|(left, right)| left.is_finite() && right.is_finite()));
         let _ = fs::remove_file(wav_path);
         let _ = fs::remove_file(sfz_path);
         let _ = fs::remove_dir(root);
@@ -819,10 +1072,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be after UNIX epoch")
             .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "verdandi-sfz-root-{}-{unique}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("verdandi-sfz-root-{}-{unique}", std::process::id()));
         let mapping_dir = root.join("mappings");
         let library_root = root.join("library");
         fs::create_dir_all(&mapping_dir).unwrap();
@@ -830,11 +1081,7 @@ mod tests {
 
         write_test_wav(&library_root.join("samples/tone.wav"));
         let sfz_path = mapping_dir.join("guitar.sfz");
-        fs::write(
-            &sfz_path,
-            "<region> sample=samples/tone.wav key=60\n",
-        )
-        .unwrap();
+        fs::write(&sfz_path, "<region> sample=samples/tone.wav key=60\n").unwrap();
 
         let instrument =
             Arc::new(SfzInstrument::load_with_sample_root(&sfz_path, &library_root).unwrap());
@@ -868,7 +1115,11 @@ mod tests {
         bytes.extend_from_slice(b"data");
         bytes.extend_from_slice(&(frames * 2).to_le_bytes());
         for index in 0..frames {
-            let value = if index % 2 == 0 { 10_000i16 } else { -10_000i16 };
+            let value = if index % 2 == 0 {
+                10_000i16
+            } else {
+                -10_000i16
+            };
             bytes.extend_from_slice(&value.to_le_bytes());
         }
         fs::write(path, bytes).unwrap();
