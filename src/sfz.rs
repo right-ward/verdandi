@@ -300,4 +300,37 @@ mod tests {
         for _ in 0..16 { assert!(voice.next_sample().is_finite()); }
         assert!(voice.is_finished());
     }
+
+    #[test]
+    fn loads_region_and_resolves_sample_root() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let unique = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let root = std::env::temp_dir().join(format!("verdandi-sfz-{}-{unique}", std::process::id()));
+        let samples = root.join("samples");
+        fs::create_dir_all(&samples).unwrap();
+        let wav_path = samples.join("test.wav");
+        let mut wav = Vec::new();
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&44u32.to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&44_100u32.to_le_bytes());
+        wav.extend_from_slice(&88_200u32.to_le_bytes());
+        wav.extend_from_slice(&2u16.to_le_bytes());
+        wav.extend_from_slice(&16u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&8u32.to_le_bytes());
+        for sample in [0i16, 12000, -12000, 0] { wav.extend_from_slice(&sample.to_le_bytes()); }
+        fs::write(&wav_path, wav).unwrap();
+
+        let mapping = root.join("instrument.sfz");
+        fs::write(&mapping, "<global>\nampeg_release=0.1\n<region> sample=samples/test.wav key=60\n").unwrap();
+        let loaded = SfzInstrument::load_with_sample_root(&mapping, &root).unwrap();
+        assert_eq!(loaded.region_count(), 1);
+        let mut voice = loaded.note_on(60, 0.8, 0.01, 44_100).unwrap();
+        assert!(voice.next_sample().is_finite());
+        fs::remove_dir_all(root).unwrap();
+    }
 }
