@@ -160,14 +160,20 @@ const SUPPORTED_OPCODES: &[&str] = &[
 ];
 
 /// Parse SFZ text without loading the referenced sample files.
+#[derive(Default)]
+struct ParserState {
+    control: HashMap<String, String>,
+    global: HashMap<String, String>,
+    group: HashMap<String, String>,
+    current_region: Option<(HashMap<String, String>, usize)>,
+    unsupported: BTreeSet<String>,
+}
+
+/// Parse SFZ text without loading the referenced sample files.
 pub fn parse_sfz(source: &str) -> Result<SfzDefinition, SfzError> {
     let mut section = Section::Global;
-    let mut control: HashMap<String, String> = HashMap::new();
-    let mut global: HashMap<String, String> = HashMap::new();
-    let mut group: HashMap<String, String> = HashMap::new();
-    let mut current_region: Option<(HashMap<String, String>, usize)> = None;
+    let mut state = ParserState::default();
     let mut regions = Vec::new();
-    let mut unsupported = BTreeSet::new();
 
     for (line_index, raw_line) in source.lines().enumerate() {
         let line_number = line_index + 1;
@@ -179,49 +185,40 @@ pub fn parse_sfz(source: &str) -> Result<SfzDefinition, SfzError> {
         loop {
             if let Some(tag_start) = remaining.find('<') {
                 let prefix = remaining[..tag_start].trim();
-                apply_assignments(
-                    prefix,
-                    line_number,
-                    section,
-                    &mut control,
-                    &mut global,
-                    &mut group,
-                    &mut current_region,
-                    &mut unsupported,
-                );
+                apply_assignments(prefix, line_number, section, &mut state);
                 let after_open = &remaining[tag_start + 1..];
                 let Some(tag_end) = after_open.find('>') else {
                     return Err(SfzError::at_line(line_number, "unterminated section tag"));
                 };
                 let tag = after_open[..tag_end].trim().to_ascii_lowercase();
 
-                if let Some((map, region_line)) = current_region.take() {
+                if let Some((map, region_line)) = state.current_region.take() {
                     regions.push(build_region(map, region_line)?);
                 }
 
                 match tag.as_str() {
                     "control" => section = Section::Control,
                     "global" => {
-                        global.clear();
-                        group.clear();
+                        state.global.clear();
+                        state.group.clear();
                         section = Section::Global;
                     }
                     "group" => {
-                        group.clear();
+                        state.group.clear();
                         section = Section::Group;
                     }
                     "region" => {
-                        let mut map = global.clone();
-                        map.extend(group.clone());
-                        current_region = Some((map, line_number));
+                        let mut map = state.global.clone();
+                        map.extend(state.group.clone());
+                        state.current_region = Some((map, line_number));
                         section = Section::Region;
                     }
                     "master" | "curve" | "effect" | "effect1" | "effect2" | "midi" => {
-                        unsupported.insert(format!("section:{tag}"));
+                        state.unsupported.insert(format!("section:{tag}"));
                         section = Section::Ignored;
                     }
                     other => {
-                        unsupported.insert(format!("section:{other}"));
+                        state.unsupported.insert(format!("section:{other}"));
                         section = Section::Ignored;
                     }
                 }
@@ -230,48 +227,31 @@ pub fn parse_sfz(source: &str) -> Result<SfzDefinition, SfzError> {
                     break;
                 }
             } else {
-                apply_assignments(
-                    remaining.trim(),
-                    line_number,
-                    section,
-                    &mut control,
-                    &mut global,
-                    &mut group,
-                    &mut current_region,
-                    &mut unsupported,
-                );
+                apply_assignments(remaining.trim(), line_number, section, &mut state);
                 break;
             }
         }
     }
 
-    if let Some((map, region_line)) = current_region.take() {
+    if let Some((map, region_line)) = state.current_region.take() {
         regions.push(build_region(map, region_line)?);
     }
     if regions.is_empty() {
         return Err(SfzError::message("SFZ contains no <region> entries"));
     }
 
-    let default_path = control
+    let default_path = state
+        .control
         .get("default_path")
         .map(|value| normalize_path(value));
     Ok(SfzDefinition {
         default_path,
         regions,
-        unsupported_opcodes: unsupported.into_iter().collect(),
+        unsupported_opcodes: state.unsupported.into_iter().collect(),
     })
 }
 
-fn apply_assignments(
-    text: &str,
-    line: usize,
-    section: Section,
-    control: &mut HashMap<String, String>,
-    global: &mut HashMap<String, String>,
-    group: &mut HashMap<String, String>,
-    current_region: &mut Option<(HashMap<String, String>, usize)>,
-    unsupported: &mut BTreeSet<String>,
-) {
+fn apply_assignments(text: &str, line: usize, section: Section, state: &mut ParserState) {
     for token in tokenize(text) {
         let Some((key, value)) = token.split_once('=') else {
             continue;
@@ -279,7 +259,7 @@ fn apply_assignments(
         let key = key.trim().to_ascii_lowercase();
         let value = value.trim().trim_matches('"').trim_matches('\'').to_owned();
         if !SUPPORTED_OPCODES.contains(&key.as_str()) {
-            unsupported.insert(key.clone());
+            state.unsupported.insert(key.clone());
         }
         if key == "loop_mode"
             && !matches!(
@@ -287,23 +267,23 @@ fn apply_assignments(
                 "no_loop" | "loop_continuous" | "loop_sustain" | "one_shot"
             )
         {
-            unsupported.insert(format!("loop_mode={value}"));
+            state.unsupported.insert(format!("loop_mode={value}"));
         }
         match section {
             Section::Control => {
-                control.insert(key, value);
+                state.control.insert(key, value);
             }
             Section::Global => {
-                global.insert(key, value);
+                state.global.insert(key, value);
             }
             Section::Group => {
-                group.insert(key, value);
+                state.group.insert(key, value);
             }
             Section::Region => {
-                if let Some((map, _)) = current_region.as_mut() {
+                if let Some((map, _)) = state.current_region.as_mut() {
                     map.insert(key, value);
                 } else {
-                    unsupported.insert(format!("orphan_assignment_line_{line}"));
+                    state.unsupported.insert(format!("orphan_assignment_line_{line}"));
                 }
             }
             Section::Ignored => {}
@@ -855,10 +835,10 @@ impl SfzSampler {
                     sample.samples[frame_index * sample.channels + channel.min(sample.channels - 1)]
                 };
                 let mut values = [0.0f32; 2];
-                for channel in 0..2 {
+                for (channel, value) in values.iter_mut().enumerate() {
                     let first = channel_sample(frame, channel);
                     let second = channel_sample(next_frame, channel);
-                    values[channel] = first + (second - first) * fraction;
+                    *value = first + (second - first) * fraction;
                 }
                 let env = envelope(
                     region,
