@@ -4,6 +4,7 @@
 //! Guitar mapping. It reports unsupported opcodes as diagnostics; it is not yet full SFZ coverage.
 //! Samples are decoded during loading, never during voice rendering.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -99,6 +100,7 @@ impl SfzInstrument {
         let mut scope = Scope::None;
         let mut pending: Option<Vec<(String, String)>> = None;
         let mut regions = Vec::new();
+        let mut sample_cache = HashMap::new();
         let mut diagnostics = Vec::new();
 
         for (index, original) in text.lines().enumerate() {
@@ -145,6 +147,7 @@ impl SfzInstrument {
                                     sample_root.as_ref(),
                                     path,
                                     index + 1,
+                                    &mut sample_cache,
                                     &mut diagnostics,
                                 )?);
                             }
@@ -192,6 +195,7 @@ impl SfzInstrument {
                 sample_root.as_ref(),
                 path,
                 text.lines().count(),
+                &mut sample_cache,
                 &mut diagnostics,
             )?);
         }
@@ -401,6 +405,7 @@ fn make_region(
     root: &Path,
     sfz: &Path,
     line: usize,
+    sample_cache: &mut HashMap<PathBuf, Sample>,
     diagnostics: &mut Vec<String>,
 ) -> Result<Region, SfzError> {
     let val = |key| inherited(global, group, ops, key);
@@ -417,14 +422,24 @@ fn make_region(
     } else {
         root.join(relative)
     };
-    let (sample_rate, frames) = read_wav(&sample_path).map_err(|e| {
-        SfzError::Invalid(format!(
-            "{}:{}: cannot load {}: {e}",
-            sfz.display(),
-            line,
-            sample_path.display()
-        ))
-    })?;
+    let sample = if let Some(sample) = sample_cache.get(&sample_path) {
+        sample.clone()
+    } else {
+        let (sample_rate, frames) = read_wav(&sample_path).map_err(|e| {
+            SfzError::Invalid(format!(
+                "{}:{}: cannot load {}: {e}",
+                sfz.display(),
+                line,
+                sample_path.display()
+            ))
+        })?;
+        let sample = Sample {
+            sample_rate,
+            frames: Arc::from(frames),
+        };
+        sample_cache.insert(sample_path.clone(), sample.clone());
+        sample
+    };
     let key = val("key")
         .map(|v| number(Some(v), 60u8, "key"))
         .transpose()?;
@@ -495,10 +510,7 @@ fn make_region(
         }
     }
     Ok(Region {
-        sample: Sample {
-            sample_rate,
-            frames: Arc::from(frames),
-        },
+        sample,
         low_key,
         high_key,
         root_key,
