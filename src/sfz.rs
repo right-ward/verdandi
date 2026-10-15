@@ -285,7 +285,9 @@ impl SfzVoice {
         let fraction = (self.position - index as f64) as f32;
         let next = if self.loop_mode == LoopMode::Continuous && index + 1 >= self.loop_end {
             self.loop_start
-        } else { (index + 1).min(self.sample.frames.len() - 1) };
+        } else {
+            (index + 1).min(self.sample.frames.len() - 1)
+        };
         let a = self.sample.frames[index];
         let b = self.sample.frames[next];
         let release = if self.age_frames < self.gate_frames {
@@ -298,7 +300,10 @@ impl SfzVoice {
             1.0
         } else {
             let elapsed = self.age_frames - self.gate_frames;
-            if elapsed >= self.release_frames { self.finished = true; return 0.0; }
+            if elapsed >= self.release_frames {
+                self.finished = true;
+                return 0.0;
+            }
             1.0 - elapsed as f32 / self.release_frames as f32
         };
         self.position += self.increment;
