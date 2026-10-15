@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::composer::{Composer, Layer, LayerAction, LoopPlan, STEPS_PER_BAR, STEPS_PER_LOOP};
 use crate::preset::{MusicPace, MusicPreset};
 use crate::synth::{Synth, Timbre};
+use crate::sfz::{SfzInstrument, SfzSampler};
 use crate::theory::{ScaleKind, Theme, ThemeOverrides, NOTE_NAMES};
 
 /// A short synthesized cue for a game event.
@@ -180,6 +181,33 @@ fn stinger_notes(kind: MusicStinger) -> &'static [StingerNote] {
         ],
     }
 }
+/// Optional user-provided sample instruments, assigned to composition layers.
+/// Instruments are loaded and decoded by the caller before constructing the audio engine.
+#[derive(Clone, Debug)]
+pub struct InstrumentConfig {
+    sfz_by_layer: [Option<Arc<SfzInstrument>>; Layer::COUNT],
+}
+
+impl InstrumentConfig {
+    pub fn set_sfz(&mut self, layer: Layer, instrument: Arc<SfzInstrument>) {
+        self.sfz_by_layer[layer.index()] = Some(instrument);
+    }
+
+    pub fn clear(&mut self, layer: Layer) {
+        self.sfz_by_layer[layer.index()] = None;
+    }
+
+    pub fn sfz(&self, layer: Layer) -> Option<&Arc<SfzInstrument>> {
+        self.sfz_by_layer[layer.index()].as_ref()
+    }
+}
+
+impl Default for InstrumentConfig {
+    fn default() -> Self {
+        Self { sfz_by_layer: std::array::from_fn(|_| None) }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct MusicConfig {
     pub seed: u64,
@@ -196,6 +224,8 @@ pub struct MusicConfig {
     /// Manual intensity, used when `auto_intensity` is false.
     pub intensity: f32,
     pub layers_enabled: [bool; Layer::COUNT],
+    /// Optional per-layer SFZ instruments. Unconfigured layers use the procedural synthesizer.
+    pub instruments: InstrumentConfig,
 }
 
 impl Default for MusicConfig {
@@ -210,6 +240,7 @@ impl Default for MusicConfig {
             auto_intensity_period_loops: 8,
             intensity: 0.6,
             layers_enabled: [true; Layer::COUNT],
+            instruments: InstrumentConfig::default(),
         }
     }
 }
@@ -443,6 +474,10 @@ fn decode_preset(bits: u32) -> (MusicPreset, MusicPace, bool) {
     )
 }
 
+fn instrument_seed(seed: u64, layer_index: usize) -> u64 {
+    seed ^ (layer_index as u64 + 1).wrapping_mul(0x9e37_79b9_7f4a_7c15)
+}
+
 fn step_len_samples(bpm: f32, sample_rate: u32) -> f64 {
     60.0 / f64::from(bpm) / 4.0 * f64::from(sample_rate)
 }
@@ -455,6 +490,8 @@ pub struct Engine {
     preset: MusicPreset,
     pace: MusicPace,
     synth: Synth,
+    instruments: InstrumentConfig,
+    sfz_samplers: [Option<SfzSampler>; Layer::COUNT],
     composer: Composer,
     plan: LoopPlan,
     step: u32,
@@ -491,6 +528,12 @@ impl Engine {
         let step_len = step_len_samples(theme.bpm, cfg.sample_rate);
         let stinger_bpm = theme.bpm;
         let synth = Synth::new(cfg.sample_rate, theme.bpm);
+        let instruments = cfg.instruments.clone();
+        let sfz_samplers = std::array::from_fn(|index| {
+            instruments.sfz_by_layer[index].as_ref().map(|instrument| {
+                SfzSampler::new(Arc::clone(instrument), cfg.sample_rate, instrument_seed(seed, index))
+            })
+        });
         let engine = Self {
             shared,
             overrides: cfg.theme.clone(),
@@ -499,6 +542,8 @@ impl Engine {
             preset: cfg.preset,
             pace: cfg.pace,
             synth,
+            instruments,
+            sfz_samplers,
             composer: Composer::with_preset(seed, theme, cfg.preset, cfg.pace),
             plan: LoopPlan::default(),
             step: 0,
@@ -536,6 +581,11 @@ impl Engine {
             self.synth.set_bpm(theme.bpm);
             self.step_len = step_len_samples(theme.bpm, self.sample_rate);
             self.composer = Composer::with_preset(seed, theme, self.preset, self.pace);
+            for (index, sampler) in self.sfz_samplers.iter_mut().enumerate() {
+                if let Some(sampler) = sampler {
+                    sampler.set_seed(instrument_seed(seed, index));
+                }
+            }
             self.publish_theme();
         }
 
@@ -573,7 +623,14 @@ impl Engine {
             for ev in &self.plan.layers[layer.index()] {
                 if ev.step == self.step {
                     let gate = ev.len as f32 * step_secs * 0.95;
-                    self.synth.note_on(ev.timbre, ev.note, ev.vel, gate);
+                    let layer_index = layer.index();
+                    let sampled = self.sfz_samplers[layer_index]
+                        .as_mut()
+                        .map(|sampler| sampler.note_on(ev.note, ev.vel, gate))
+                        .unwrap_or(false);
+                    if !sampled {
+                        self.synth.note_on(ev.timbre, ev.note, ev.vel, gate);
+                    }
                 }
             }
         }
@@ -606,6 +663,7 @@ impl Engine {
             layers_enabled: std::array::from_fn(|i| {
                 self.shared.layer_mask.load(Relaxed) & (1 << i) != 0
             }),
+            instruments: self.instruments.clone(),
         };
         self.transition = Some(Box::new(Self::new_inner(
             self.shared.clone(),
@@ -624,6 +682,8 @@ impl Engine {
         std::mem::swap(&mut self.preset, &mut other.preset);
         std::mem::swap(&mut self.pace, &mut other.pace);
         std::mem::swap(&mut self.synth, &mut other.synth);
+        std::mem::swap(&mut self.instruments, &mut other.instruments);
+        std::mem::swap(&mut self.sfz_samplers, &mut other.sfz_samplers);
         std::mem::swap(&mut self.composer, &mut other.composer);
         std::mem::swap(&mut self.plan, &mut other.plan);
         std::mem::swap(&mut self.step, &mut other.step);
@@ -698,6 +758,11 @@ impl Engine {
         }
         self.countdown -= 1.0;
         let mut outgoing = self.synth.render_frame();
+        for sampler in self.sfz_samplers.iter_mut().flatten() {
+            let (left, right) = sampler.render_frame();
+            outgoing.0 += left;
+            outgoing.1 += right;
+        }
         let stinger = self.render_stinger();
         outgoing.0 = (outgoing.0 + stinger.0 * 0.55).tanh();
         outgoing.1 = (outgoing.1 + stinger.1 * 0.55).tanh();
