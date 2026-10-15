@@ -1,11 +1,11 @@
 [package]
 name = "verdandi"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["right-ward"]
 repository = "https://github.com/right-ward/verdandi"
-description = "Seeded, layered procedural music for games: engine-agnostic core + Bevy plugin"
+description = "Seeded, layered game music with procedural synthesis and optional SFZ sample instruments"
 publish = true
 
 [features]
@@ -38,6 +38,9 @@ bevy = { version = "0.20", optional = true, default-features = false }
 
 [[example]]
 name = "render_wav"
+
+[[example]]
+name = "sfz_audition"
 
 [[example]]
 name = "demo"
