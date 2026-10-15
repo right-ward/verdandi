@@ -20,9 +20,13 @@ pub mod plugin;
 
 pub mod prelude {
     pub use crate::composer::{Layer, LayerAction, LoopPlan, NoteEvent};
-    pub use crate::engine::{Engine, InstrumentConfig, MusicConfig, MusicShared, MusicStatus, MusicStinger};
-    pub use crate::sfz::{parse_sfz, SfzDefinition, SfzError, SfzInstrument, SfzLoopMode, SfzRegion, SfzSampler};
+    pub use crate::engine::{
+        Engine, InstrumentConfig, MusicConfig, MusicShared, MusicStatus, MusicStinger,
+    };
     pub use crate::preset::{MusicPace, MusicPreset};
+    pub use crate::sfz::{
+        parse_sfz, SfzDefinition, SfzError, SfzInstrument, SfzLoopMode, SfzRegion, SfzSampler,
+    };
     pub use crate::theory::{ScaleKind, Theme, ThemeOverrides};
 
     #[cfg(feature = "bevy-plugin")]
