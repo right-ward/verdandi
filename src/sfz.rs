@@ -159,7 +159,6 @@ const SUPPORTED_OPCODES: &[&str] = &[
     "default_path",
 ];
 
-/// Parse SFZ text without loading the referenced sample files.
 #[derive(Default)]
 struct ParserState {
     control: HashMap<String, String>,
