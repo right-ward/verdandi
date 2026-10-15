@@ -136,11 +136,14 @@ impl SfzVoice {
     /// Generate the next mono sample; returns zero after this voice has finished.
     pub fn next_sample(&mut self) -> f32 {
         if self.finished || self.sample.frames.is_empty() { return 0.0; }
-        if self.position >= self.sample.frames.len() as f64 {
-            if self.loop_mode == LoopMode::Continuous && self.loop_end > self.loop_start {
-                let length = (self.loop_end - self.loop_start) as f64;
-                self.position = self.loop_start as f64 + (self.position - self.loop_start as f64).rem_euclid(length);
-            } else { self.finished = true; return 0.0; }
+        if self.loop_mode == LoopMode::Continuous && self.loop_end > self.loop_start
+            && self.position >= self.loop_end as f64
+        {
+            let length = (self.loop_end - self.loop_start) as f64;
+            self.position = self.loop_start as f64 + (self.position - self.loop_start as f64).rem_euclid(length);
+        } else if self.position >= self.sample.frames.len() as f64 {
+            self.finished = true;
+            return 0.0;
         }
         let index = self.position as usize;
         let fraction = (self.position - index as f64) as f32;
@@ -203,10 +206,11 @@ fn make_region(global: &[(String, String)], group: &[(String, String)], ops: &[(
     let relative = PathBuf::from(sample_value.replace('\\', "/"));
     let sample_path = if relative.is_absolute() { relative } else { root.join(relative) };
     let (sample_rate, frames) = read_wav(&sample_path).map_err(|e| SfzError::Invalid(format!("{}:{}: cannot load {}: {e}", sfz.display(), line, sample_path.display())))?;
-    let key = number(val("key"), 60u8, "key")?;
-    let low_key = number(val("lokey"), key, "lokey")?;
-    let high_key = number(val("hikey"), key, "hikey")?;
-    let root_key = number(val("pitch_keycenter"), key, "pitch_keycenter")?;
+    let key = val("key").map(|v| number(Some(v), 60u8, "key")).transpose()?;
+    let low_key = val("lokey").map(|v| number(Some(v), 0u8, "lokey")).transpose()?.or(key).unwrap_or(0);
+    let high_key = val("hikey").map(|v| number(Some(v), 127u8, "hikey")).transpose()?.or(key).unwrap_or(127);
+    let root_key = val("pitch_keycenter").map(|v| number(Some(v), 60u8, "pitch_keycenter")).transpose()?
+        .or(key).unwrap_or((low_key + high_key) / 2);
     let low_velocity = number(val("lovel"), 0u8, "lovel")?;
     let high_velocity = number(val("hivel"), 127u8, "hivel")?;
     if low_key > high_key || low_velocity > high_velocity {
