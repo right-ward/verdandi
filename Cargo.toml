@@ -1,6 +1,6 @@
 [package]
 name = "verdandi"
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["right-ward"]
@@ -38,6 +38,9 @@ bevy = { version = "0.20", optional = true, default-features = false }
 
 [[example]]
 name = "render_wav"
+
+[[example]]
+name = "sfz_render_wav"
 
 [[example]]
 name = "demo"
